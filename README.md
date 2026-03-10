@@ -94,6 +94,15 @@ This repository is prepared for GitHub publishing with automated CI and release 
 - Optional Docker Hub publish when secrets are configured
 - Automatic GitHub release creation with generated release notes
 
+If you want Docker Hub publishing, add these repository secrets in GitHub:
+
+- `DOCKERHUB_USERNAME`
+- `DOCKERHUB_TOKEN` (Docker Hub access token)
+
+When those secrets are not set, the workflow still publishes to GHCR and skips Docker Hub steps.
+
+Manual publish is also supported via `workflow_dispatch` in `.github/workflows/docker-publish.yml` with a `version` input (`X.Y.Z` without `v`).
+
 See [docs/publishing.md](docs/publishing.md) for the exact setup and release flow.
 
 To run using published images instead of local builds, use:
