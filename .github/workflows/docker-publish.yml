@@ -107,7 +107,7 @@ jobs:
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
 
       - name: Build and push backend (GHCR)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./apps/backend
           file: ./apps/backend/Dockerfile
@@ -134,7 +134,7 @@ jobs:
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
 
       - name: Build and push frontend (GHCR)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./apps/frontend
           file: ./apps/frontend/Dockerfile
@@ -165,7 +165,7 @@ jobs:
 
       - name: Build and push backend (Docker Hub)
         if: ${{ env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != '' }}
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./apps/backend
           file: ./apps/backend/Dockerfile
@@ -189,7 +189,7 @@ jobs:
 
       - name: Build and push frontend (Docker Hub)
         if: ${{ env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != '' }}
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./apps/frontend
           file: ./apps/frontend/Dockerfile
