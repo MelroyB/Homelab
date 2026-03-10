@@ -1,0 +1,24 @@
+services:
+  frontend:
+    environment:
+      - NODE_ENV=development
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "4173"]
+    volumes:
+      - ./apps/frontend:/app
+      - /app/node_modules
+
+  backend:
+    command:
+      [
+        "sh",
+        "-c",
+        "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+      ]
+    volumes:
+      - ./apps/backend:/app
+      - homelab_data:/var/lib/homelab
+
+  caddy:
+    ports:
+      - "8080:80"
+      - "8443:443"

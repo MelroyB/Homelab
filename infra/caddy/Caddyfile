@@ -1,0 +1,13 @@
+{
+    admin off
+    auto_https disable_redirects
+}
+
+:80 {
+    encode gzip
+
+    @api path /api/* /health/* /docs* /openapi.json
+    reverse_proxy @api backend:8000
+
+    reverse_proxy frontend:4173
+}

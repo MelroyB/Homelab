@@ -1,0 +1,12 @@
+$TTL {{ config.get('ttl', 3600) }}
+@   IN SOA {{ config.get('primary_ns', 'ns1.homelab.local.') }} {{ config.get('admin_email', 'admin.homelab.local.') }} (
+        {{ config.get('serial', 2026031001) }}
+        3600
+        900
+        1209600
+        3600 )
+
+@   IN NS {{ config.get('primary_ns', 'ns1.homelab.local.') }}
+{% for record in config.get('records', [{'name':'ns1','type':'A','value':'192.168.50.2'}]) %}
+{{ record.name }} IN {{ record.type }} {{ record.value }}
+{% endfor %}

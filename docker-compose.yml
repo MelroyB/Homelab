@@ -1,0 +1,224 @@
+services:
+  caddy:
+    image: caddy:2.8.4
+    container_name: homelab-caddy-1
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - XDG_DATA_HOME=/homelab-data/state/caddy/data
+      - XDG_CONFIG_HOME=/homelab-data/state/caddy/config
+    entrypoint: ["/bin/sh", "/usr/local/bin/caddy-start.sh"]
+    volumes:
+      - homelab_data:/homelab-data
+      - ./infra/caddy/Caddyfile:/defaults/Caddyfile:ro
+      - ./infra/scripts/caddy-start.sh:/usr/local/bin/caddy-start.sh:ro
+    depends_on:
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks:
+      - edge
+      - control
+    healthcheck:
+      test: ["CMD", "caddy", "version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    container_name: homelab-frontend-1
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - VITE_API_BASE_URL=${VITE_API_BASE_URL}
+    networks:
+      - control
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4173/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    container_name: homelab-backend-1
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT}
+      - LOG_LEVEL=${API_LOG_LEVEL}
+      - SECRET_KEY=${SECRET_KEY}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
+      - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS}
+      - AUTH_COOKIE_SECURE=${AUTH_COOKIE_SECURE}
+      - AUTH_COOKIE_SAMESITE=${AUTH_COOKIE_SAMESITE}
+      - CSRF_COOKIE_SECURE=${CSRF_COOKIE_SECURE}
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - BACKUP_ENCRYPTION_ENABLED=${BACKUP_ENCRYPTION_ENABLED}
+      - BACKUP_ENCRYPTION_KEY=${BACKUP_ENCRYPTION_KEY}
+      - DOCKER_HOST=${DOCKER_HOST}
+    volumes:
+      - homelab_data:/var/lib/homelab
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      socket-proxy:
+        condition: service_healthy
+    networks:
+      - control
+      - infra
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/health/live >/dev/null || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: homelab-postgres-1
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - PGDATA=/var/lib/postgresql/data/postgres
+    volumes:
+      - homelab_data:/var/lib/postgresql/data
+    networks:
+      - control
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: homelab-redis-1
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1000"]
+    volumes:
+      - homelab_data:/data
+    networks:
+      - control
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  socket-proxy:
+    image: tecnativa/docker-socket-proxy:0.3.0
+    container_name: homelab-socket-proxy-1
+    restart: unless-stopped
+    environment:
+      - LOG_LEVEL=info
+      - CONTAINERS=1
+      - EVENTS=1
+      - INFO=1
+      - IMAGES=1
+      - DISTRIBUTION=1
+      - PING=1
+      - POST=1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - control
+    read_only: true
+    tmpfs:
+      - /run
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:2375/_ping >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 10
+
+  dnsmasq:
+    image: andyshinn/dnsmasq:2.86
+    container_name: homelab-dnsmasq-1
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    entrypoint: ["/bin/sh", "/usr/local/bin/dnsmasq-start.sh"]
+    volumes:
+      - homelab_data:/homelab-data
+      - ./infra/dnsmasq/dnsmasq.conf:/defaults/dnsmasq.conf:ro
+      - ./infra/scripts/dnsmasq-start.sh:/usr/local/bin/dnsmasq-start.sh:ro
+    ports:
+      - "53:53/udp"
+      - "53:53/tcp"
+      - "67:67/udp"
+    networks:
+      - infra
+    healthcheck:
+      test: ["CMD-SHELL", "pidof dnsmasq >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  bind9:
+    image: internetsystemsconsortium/bind9:9.18
+    container_name: homelab-bind9-1
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/usr/local/bin/bind9-start.sh"]
+    volumes:
+      - homelab_data:/homelab-data
+      - ./infra/bind9/named.conf:/defaults/named.conf:ro
+      - ./infra/bind9/zones/db.homelab.local:/defaults/db.homelab.local:ro
+      - ./infra/scripts/bind9-start.sh:/usr/local/bin/bind9-start.sh:ro
+    ports:
+      - "1053:53/tcp"
+      - "1053:53/udp"
+    networks:
+      - infra
+    healthcheck:
+      test: ["CMD-SHELL", "named-checkconf /homelab-data/config/bind9/named.conf || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  ntp:
+    image: cturra/ntp:latest
+    container_name: homelab-ntp-1
+    restart: unless-stopped
+    environment:
+      - NTP_SERVERS=time.cloudflare.com,time.google.com
+    ports:
+      - "123:123/udp"
+    cap_add:
+      - SYS_TIME
+    volumes:
+      - homelab_data:/homelab-data
+    networks:
+      - infra
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep [n]tpd >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+networks:
+  edge:
+    driver: bridge
+  control:
+    driver: bridge
+    internal: true
+  infra:
+    driver: bridge
+
+volumes:
+  homelab_data:

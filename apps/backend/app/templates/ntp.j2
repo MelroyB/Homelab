@@ -1,0 +1,9 @@
+# Rendered by Homelab control plane
+{% for server in config.get('servers', ['time.cloudflare.com', 'time.google.com']) %}
+server {{ server }} iburst
+{% endfor %}
+
+# Restrict default access
+restrict default kod nomodify notrap nopeer noquery
+restrict 127.0.0.1
+restrict ::1

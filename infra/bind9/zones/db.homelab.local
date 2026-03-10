@@ -1,0 +1,12 @@
+$TTL    3600
+@       IN      SOA     ns1.homelab.local. admin.homelab.local. (
+                        2026031001 ; serial
+                        3600       ; refresh
+                        900        ; retry
+                        1209600    ; expire
+                        3600 )     ; minimum
+
+@       IN      NS      ns1.homelab.local.
+ns1     IN      A       192.168.50.2
+api     IN      A       192.168.50.10
+dashboard IN    A       192.168.50.10

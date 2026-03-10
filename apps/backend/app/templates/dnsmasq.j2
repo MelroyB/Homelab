@@ -1,0 +1,14 @@
+# Rendered by Homelab control plane
+no-resolv
+{% for server in config.get('upstream_servers', ['1.1.1.1', '1.0.0.1']) %}
+server={{ server }}
+{% endfor %}
+domain={{ config.get('domain', 'homelab.local') }}
+local=/{{ config.get('domain', 'homelab.local') }}/
+cache-size={{ config.get('cache_size', 1000) }}
+{% for range in config.get('dhcp_ranges', ['192.168.50.100,192.168.50.200,12h']) %}
+dhcp-range={{ range }}
+{% endfor %}
+{% if config.get('router') %}
+dhcp-option=option:router,{{ config.get('router') }}
+{% endif %}
