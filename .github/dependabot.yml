@@ -37,6 +37,13 @@ updates:
       timezone: "Europe/Amsterdam"
     open-pull-requests-limit: 3
     rebase-strategy: "disabled"
+    ignore:
+      - dependency-name: "eslint"
+        update-types:
+          - "version-update:semver-major"
+      - dependency-name: "@eslint/js"
+        update-types:
+          - "version-update:semver-major"
     groups:
       frontend-production:
         dependency-type: "production"
