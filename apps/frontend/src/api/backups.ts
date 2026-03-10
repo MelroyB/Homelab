@@ -6,13 +6,23 @@ export function listBackups(): Promise<BackupListResponse> {
 }
 
 export function createBackup() {
-  return apiRequest<{ id: string; name: string; checksum: string; created_at: string }>("/backups/export", {
+  return apiRequest<{
+    id: string;
+    name: string;
+    checksum: string;
+    created_at: string;
+  }>("/backups/export", {
     method: "POST"
   });
 }
 
 export function restoreBackup(snapshotId: string) {
-  return apiRequest<{ id: string; name: string; checksum: string; created_at: string }>("/backups/restore", {
+  return apiRequest<{
+    id: string;
+    name: string;
+    checksum: string;
+    created_at: string;
+  }>("/backups/restore", {
     method: "POST",
     body: JSON.stringify({ snapshot_id: snapshotId })
   });

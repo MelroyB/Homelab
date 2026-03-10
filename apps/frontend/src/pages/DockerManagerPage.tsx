@@ -34,7 +34,9 @@ export function DockerManagerPage() {
   const [host, setHost] = useState<DockerHostInfo | null>(null);
   const [containers, setContainers] = useState<DockerContainerItem[]>([]);
   const [images, setImages] = useState<DockerImageItem[]>([]);
-  const [updates, setUpdates] = useState<Record<string, DockerImageUpdateStatus>>({});
+  const [updates, setUpdates] = useState<
+    Record<string, DockerImageUpdateStatus>
+  >({});
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
 
@@ -53,7 +55,9 @@ export function DockerManagerPage() {
 
   useEffect(() => {
     reload().catch((err) => {
-      setError(err instanceof Error ? err.message : "Failed to load docker manager");
+      setError(
+        err instanceof Error ? err.message : "Failed to load docker manager"
+      );
     });
   }, [reload]);
 
@@ -106,7 +110,10 @@ export function DockerManagerPage() {
       <div className="page-header">
         <h2>Docker Manager</h2>
         <div className="action-row">
-          <select value={scope} onChange={(e) => setScope(e.target.value as "project" | "all") }>
+          <select
+            value={scope}
+            onChange={(e) => setScope(e.target.value as "project" | "all")}
+          >
             <option value="project">Project containers</option>
             <option value="all">All host containers</option>
           </select>
@@ -157,27 +164,51 @@ export function DockerManagerPage() {
                 <td>{container.name}</td>
                 <td className="mono">{container.image}</td>
                 <td>
-                  <StatusBadge value={container.health !== "unknown" ? container.health : container.status} />
+                  <StatusBadge
+                    value={
+                      container.health !== "unknown"
+                        ? container.health
+                        : container.status
+                    }
+                  />
                 </td>
                 <td>{container.project_name || "-"}</td>
-                <td>{container.ports.length > 0 ? container.ports.join(", ") : "-"}</td>
+                <td>
+                  {container.ports.length > 0
+                    ? container.ports.join(", ")
+                    : "-"}
+                </td>
                 <td>
                   <div className="action-row">
                     <button
                       className="btn btn-secondary"
-                      onClick={() => runContainerAction(container.id, "start", container.name)}
+                      onClick={() =>
+                        runContainerAction(
+                          container.id,
+                          "start",
+                          container.name
+                        )
+                      }
                     >
                       start
                     </button>
                     <button
                       className="btn btn-secondary"
-                      onClick={() => runContainerAction(container.id, "stop", container.name)}
+                      onClick={() =>
+                        runContainerAction(container.id, "stop", container.name)
+                      }
                     >
                       stop
                     </button>
                     <button
                       className="btn btn-secondary"
-                      onClick={() => runContainerAction(container.id, "restart", container.name)}
+                      onClick={() =>
+                        runContainerAction(
+                          container.id,
+                          "restart",
+                          container.name
+                        )
+                      }
                     >
                       restart
                     </button>
@@ -225,7 +256,10 @@ export function DockerManagerPage() {
                     )}
                   </td>
                   <td>
-                    <button className="btn btn-secondary" onClick={() => runPull(tag)}>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => runPull(tag)}
+                    >
                       pull
                     </button>
                   </td>

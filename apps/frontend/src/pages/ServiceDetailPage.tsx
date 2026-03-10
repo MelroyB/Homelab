@@ -11,7 +11,12 @@ import {
 import { ConfigVersion, ServiceDetail } from "../types/api";
 import { StatusBadge } from "../components/StatusBadge";
 
-const ACTIONS: Array<"start" | "stop" | "restart" | "reload"> = ["start", "stop", "restart", "reload"];
+const ACTIONS: Array<"start" | "stop" | "restart" | "reload"> = [
+  "start",
+  "stop",
+  "restart",
+  "reload"
+];
 
 export function ServiceDetailPage() {
   const { slug = "" } = useParams();
@@ -31,13 +36,18 @@ export function ServiceDetailPage() {
   }, [formConfigText]);
 
   const reload = useCallback(async () => {
-    const [serviceData, versionData] = await Promise.all([getService(slug), listConfigVersions(slug)]);
+    const [serviceData, versionData] = await Promise.all([
+      getService(slug),
+      listConfigVersions(slug)
+    ]);
     setService(serviceData);
     setVersions(versionData);
   }, [slug]);
 
   useEffect(() => {
-    reload().catch((err) => setError(err instanceof Error ? err.message : "Failed to load service"));
+    reload().catch((err) =>
+      setError(err instanceof Error ? err.message : "Failed to load service")
+    );
   }, [reload]);
 
   const onAction = async (action: "start" | "stop" | "restart" | "reload") => {
@@ -68,7 +78,9 @@ export function ServiceDetailPage() {
         setError(`Validation failed: ${response.errors.join(", ")}`);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Validation request failed");
+      setError(
+        err instanceof Error ? err.message : "Validation request failed"
+      );
     }
   };
 
@@ -81,7 +93,9 @@ export function ServiceDetailPage() {
     }
     try {
       const response = await applyConfig(slug, parsedConfig, rawConfig);
-      setResult(`Applied version ${response.version.version}: ${response.version.apply_message}`);
+      setResult(
+        `Applied version ${response.version.version}: ${response.version.apply_message}`
+      );
       await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Apply failed");
@@ -113,7 +127,11 @@ export function ServiceDetailPage() {
 
       <div className="action-row">
         {ACTIONS.map((action) => (
-          <button key={action} className="btn btn-secondary" onClick={() => onAction(action)}>
+          <button
+            key={action}
+            className="btn btn-secondary"
+            onClick={() => onAction(action)}
+          >
             {action}
           </button>
         ))}
@@ -125,9 +143,17 @@ export function ServiceDetailPage() {
       <div className="two-column">
         <form className="card" onSubmit={onValidate}>
           <h3>Form Config (JSON)</h3>
-          <textarea value={formConfigText} onChange={(e) => setFormConfigText(e.target.value)} rows={12} />
+          <textarea
+            value={formConfigText}
+            onChange={(e) => setFormConfigText(e.target.value)}
+            rows={12}
+          />
           <h3>Raw Config Override</h3>
-          <textarea value={rawConfig} onChange={(e) => setRawConfig(e.target.value)} rows={12} />
+          <textarea
+            value={rawConfig}
+            onChange={(e) => setRawConfig(e.target.value)}
+            rows={12}
+          />
           <div className="action-row">
             <button type="submit" className="btn btn-secondary">
               Validate
@@ -158,7 +184,10 @@ export function ServiceDetailPage() {
                   </td>
                   <td>{new Date(version.created_at).toLocaleString()}</td>
                   <td>
-                    <button className="btn btn-secondary" onClick={() => onRollback(version.id)}>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => onRollback(version.id)}
+                    >
                       Rollback
                     </button>
                   </td>

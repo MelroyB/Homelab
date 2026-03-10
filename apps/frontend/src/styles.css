@@ -2,8 +2,10 @@
 
 :root {
   --bg: #f2efe9;
-  --bg-accent: radial-gradient(circle at 80% -30%, #ffd588 0, transparent 45%),
-    radial-gradient(circle at 0% 100%, #aad7ff 0, transparent 40%), linear-gradient(135deg, #f2efe9, #e7e1d7);
+  --bg-accent:
+    radial-gradient(circle at 80% -30%, #ffd588 0, transparent 45%),
+    radial-gradient(circle at 0% 100%, #aad7ff 0, transparent 40%),
+    linear-gradient(135deg, #f2efe9, #e7e1d7);
   --surface: rgba(255, 255, 255, 0.82);
   --text: #1e232c;
   --muted: #5a6575;
@@ -163,7 +165,9 @@ textarea {
   background: var(--accent);
   color: #fff;
   cursor: pointer;
-  transition: transform 0.2s ease, background-color 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .btn:hover {

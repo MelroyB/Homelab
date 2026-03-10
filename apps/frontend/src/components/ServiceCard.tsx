@@ -15,8 +15,15 @@ export function ServiceCard({ service }: ServiceCardProps) {
       </div>
       <p>{service.slug}</p>
       <p>State: {service.state}</p>
-      <p>Ports: {service.ports.length > 0 ? service.ports.join(", ") : "none"}</p>
-      <p>Last config: {service.last_config_version ? `v${service.last_config_version}` : "n/a"}</p>
+      <p>
+        Ports: {service.ports.length > 0 ? service.ports.join(", ") : "none"}
+      </p>
+      <p>
+        Last config:{" "}
+        {service.last_config_version
+          ? `v${service.last_config_version}`
+          : "n/a"}
+      </p>
     </Link>
   );
 }

@@ -13,7 +13,9 @@ export function BackupsPage() {
   };
 
   useEffect(() => {
-    reload().catch((err) => setError(err instanceof Error ? err.message : "Failed to load backups"));
+    reload().catch((err) =>
+      setError(err instanceof Error ? err.message : "Failed to load backups")
+    );
   }, []);
 
   const onCreate = async () => {
@@ -67,7 +69,10 @@ export function BackupsPage() {
               <td>{new Date(item.created_at).toLocaleString()}</td>
               <td className="mono">{item.checksum.slice(0, 16)}...</td>
               <td>
-                <button className="btn btn-secondary" onClick={() => onRestore(item.id)}>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => onRestore(item.id)}
+                >
                   Restore
                 </button>
               </td>

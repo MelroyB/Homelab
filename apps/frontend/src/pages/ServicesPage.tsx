@@ -10,7 +10,9 @@ export function ServicesPage() {
   useEffect(() => {
     listServices()
       .then(setServices)
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load services"));
+      .catch((err) =>
+        setError(err instanceof Error ? err.message : "Failed to load services")
+      );
   }, []);
 
   return (

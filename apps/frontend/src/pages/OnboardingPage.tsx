@@ -34,7 +34,12 @@ export function OnboardingPage() {
         <p>Create the initial local administrator account.</p>
         <label>
           Email
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
         </label>
         <label>
           Password (min 12 chars)

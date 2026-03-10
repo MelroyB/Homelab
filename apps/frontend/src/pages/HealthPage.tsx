@@ -10,7 +10,11 @@ export function HealthPage() {
   useEffect(() => {
     getReadiness()
       .then(setStatus)
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load health status"));
+      .catch((err) =>
+        setError(
+          err instanceof Error ? err.message : "Failed to load health status"
+        )
+      );
   }, []);
 
   if (error) {
