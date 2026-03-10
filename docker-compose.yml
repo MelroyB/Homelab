@@ -9,11 +9,31 @@ services:
     environment:
       - XDG_DATA_HOME=/homelab-data/state/caddy/data
       - XDG_CONFIG_HOME=/homelab-data/state/caddy/config
-    entrypoint: ["/bin/sh", "/usr/local/bin/caddy-start.sh"]
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        mkdir -p /homelab-data/config/caddy /homelab-data/state/caddy/data /homelab-data/state/caddy/config
+        if [ ! -f /homelab-data/config/caddy/Caddyfile ]; then
+          cat > /homelab-data/config/caddy/Caddyfile <<'EOF'
+        {
+            admin off
+            auto_https disable_redirects
+        }
+
+        :80 {
+            encode gzip
+
+            @api path /api/* /health/* /docs* /openapi.json
+            reverse_proxy @api backend:8000
+
+            reverse_proxy frontend:4173
+        }
+        EOF
+        fi
+        exec caddy run --config /homelab-data/config/caddy/Caddyfile --adapter caddyfile
     volumes:
       - homelab_data:/homelab-data
-      - ./infra/caddy/Caddyfile:/defaults/Caddyfile:ro
-      - ./infra/scripts/caddy-start.sh:/usr/local/bin/caddy-start.sh:ro
     depends_on:
       frontend:
         condition: service_healthy
@@ -38,7 +58,13 @@ services:
     networks:
       - control
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4173/ >/dev/null || exit 1"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "const req=require('http').get('http://127.0.0.1:4173',res=>process.exit(res.statusCode<500?0:1));req.on('error',()=>process.exit(1));req.setTimeout(3000,()=>{req.destroy();process.exit(1)});",
+        ]
       interval: 30s
       timeout: 5s
       retries: 5
@@ -145,7 +171,7 @@ services:
       - /run
       - /tmp
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:2375/_ping >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "grep -qiE ':[0]*947[[:space:]].*0A' /proc/net/tcp"]
       interval: 15s
       timeout: 3s
       retries: 10

@@ -37,6 +37,8 @@ export interface ConfigVersion {
   id: string;
   service_slug: string;
   version: number;
+  config_json: Record<string, unknown>;
+  raw_config: string;
   validation_status: string;
   apply_status: string;
   is_active: boolean;

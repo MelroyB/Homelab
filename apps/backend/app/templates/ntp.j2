@@ -1,9 +1,27 @@
 # Rendered by Homelab control plane
-{% for server in config.get('servers', ['time.cloudflare.com', 'time.google.com']) %}
-server {{ server }} iburst
+{% set servers = config.get('servers', ['time.cloudflare.com', 'time.google.com']) %}
+{% set iburst = config.get('iburst', True) %}
+{% for server in servers %}
+server {{ server }}{% if iburst %} iburst{% endif %}
 {% endfor %}
+
+{% if config.get('disable_monitor', True) %}
+disable monitor
+{% endif %}
 
 # Restrict default access
 restrict default kod nomodify notrap nopeer noquery
 restrict 127.0.0.1
 restrict ::1
+{% for network in config.get('allow_networks', []) %}
+restrict {{ network }} nomodify notrap
+{% endfor %}
+
+{% for interface in config.get('listen_interfaces', []) %}
+interface listen {{ interface }}
+{% endfor %}
+
+{% if config.get('local_clock', False) %}
+server 127.127.1.0
+fudge 127.127.1.0 stratum {{ config.get('local_stratum', 10) }}
+{% endif %}
