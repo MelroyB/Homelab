@@ -112,3 +112,11 @@ BACKEND_IMAGE=ghcr.io/<owner>/<repo>-backend:v0.1.0 \
 FRONTEND_IMAGE=ghcr.io/<owner>/<repo>-frontend:v0.1.0 \
 docker compose -f docker-compose.yml -f docker-compose.publish.yml up -d
 ```
+
+Or use Docker Hub images:
+
+```bash
+BACKEND_IMAGE=melroy/homelab-control-backend:latest \
+FRONTEND_IMAGE=melroy/homelab-control-frontend:latest \
+docker compose -f docker-compose.yml -f docker-compose.publish.yml up -d
+```

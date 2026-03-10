@@ -2,7 +2,12 @@ services:
   frontend:
     environment:
       - NODE_ENV=development
-    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "4173"]
+    command:
+      [
+        "sh",
+        "-c",
+        "if [ ! -d node_modules ] || [ -z \"$(ls -A node_modules 2>/dev/null)\" ]; then npm ci; fi && npm run dev -- --host 0.0.0.0 --port 4173"
+      ]
     volumes:
       - ./apps/frontend:/app
       - /app/node_modules
