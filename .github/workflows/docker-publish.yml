@@ -92,7 +92,7 @@ jobs:
 
       - name: Docker meta (backend GHCR)
         id: meta_backend_ghcr
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ steps.vars.outputs.repo_lower }}-backend
           tags: |
@@ -119,7 +119,7 @@ jobs:
 
       - name: Docker meta (frontend GHCR)
         id: meta_frontend_ghcr
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ steps.vars.outputs.repo_lower }}-frontend
           tags: |
@@ -154,7 +154,7 @@ jobs:
       - name: Docker meta (backend Docker Hub)
         if: ${{ env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != '' }}
         id: meta_backend_hub
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.DOCKERHUB_USERNAME }}/homelab-control-backend
           tags: |
@@ -178,7 +178,7 @@ jobs:
       - name: Docker meta (frontend Docker Hub)
         if: ${{ env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != '' }}
         id: meta_frontend_hub
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.DOCKERHUB_USERNAME }}/homelab-control-frontend
           tags: |
