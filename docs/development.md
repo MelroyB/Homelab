@@ -48,6 +48,12 @@ Create a new migration:
 make makemigration name=add_new_column
 ```
 
+Create and push a release tag:
+
+```bash
+make release-tag version=0.1.0
+```
+
 ## Coding standards
 
 - Backend: Ruff lint + format

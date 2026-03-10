@@ -6,30 +6,76 @@ on:
       - "v*.*.*"
   workflow_dispatch:
     inputs:
-      tag:
-        description: "Release tag (for example v0.2.0)"
-        required: false
+      version:
+        description: "Version tag without v prefix (example: 0.2.0)"
+        required: true
         type: string
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
-  publish:
+  quality-gate:
     runs-on: ubuntu-latest
-    env:
-      TAG_REF: ${{ github.event.inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Resolve image namespace
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      - name: Backend checks
+        working-directory: apps/backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+          alembic upgrade head
+          ruff check app tests
+          ruff format --check app tests
+          pytest -q
+
+      - name: Frontend checks
+        working-directory: apps/frontend
+        run: |
+          npm ci
+          npm run lint
+          npm run format:check
+          npm run test -- --run
+          npm run build
+
+      - name: Compose validate
+        run: |
+          cp .env.example .env
+          docker compose config >/dev/null
+
+  publish:
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve publish variables
         id: vars
         run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+            TAG="v${VERSION}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+            VERSION="${TAG#v}"
+          fi
+
           REPO_LOWER=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
-          OWNER_LOWER=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "repo_lower=${REPO_LOWER}" >> "$GITHUB_OUTPUT"
-          echo "owner_lower=${OWNER_LOWER}" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
@@ -41,72 +87,119 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Detect Docker Hub credentials
-        id: dockerhub
-        run: |
-          if [ -n "${{ secrets.DOCKERHUB_USERNAME }}" ] && [ -n "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Login to Docker Hub
-        if: steps.dockerhub.outputs.enabled == 'true'
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Docker meta (backend)
-        id: meta_backend
+      - name: Docker meta (backend GHCR)
+        id: meta_backend_ghcr
         uses: docker/metadata-action@v5
         with:
-          images: |
-            ghcr.io/${{ steps.vars.outputs.repo_lower }}-backend
-            ${{ steps.dockerhub.outputs.enabled == 'true' && format('{0}/homelab-control-backend', secrets.DOCKERHUB_USERNAME) || '' }}
+          images: ghcr.io/${{ steps.vars.outputs.repo_lower }}-backend
           tags: |
-            type=raw,value=${{ env.TAG_REF }}
+            type=raw,value=${{ steps.vars.outputs.version }}
+            type=raw,value=${{ steps.vars.outputs.tag }}
             type=raw,value=latest
             type=sha
           labels: |
             org.opencontainers.image.title=homelab-control-backend
             org.opencontainers.image.description=Homelab Control Plane backend API
+            org.opencontainers.image.version=${{ steps.vars.outputs.version }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
 
-      - name: Build and push backend
+      - name: Build and push backend (GHCR)
         uses: docker/build-push-action@v6
         with:
           context: ./apps/backend
           file: ./apps/backend/Dockerfile
           push: true
-          tags: ${{ steps.meta_backend.outputs.tags }}
-          labels: ${{ steps.meta_backend.outputs.labels }}
+          tags: ${{ steps.meta_backend_ghcr.outputs.tags }}
+          labels: ${{ steps.meta_backend_ghcr.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Docker meta (frontend)
-        id: meta_frontend
+      - name: Docker meta (frontend GHCR)
+        id: meta_frontend_ghcr
         uses: docker/metadata-action@v5
         with:
-          images: |
-            ghcr.io/${{ steps.vars.outputs.repo_lower }}-frontend
-            ${{ steps.dockerhub.outputs.enabled == 'true' && format('{0}/homelab-control-frontend', secrets.DOCKERHUB_USERNAME) || '' }}
+          images: ghcr.io/${{ steps.vars.outputs.repo_lower }}-frontend
           tags: |
-            type=raw,value=${{ env.TAG_REF }}
+            type=raw,value=${{ steps.vars.outputs.version }}
+            type=raw,value=${{ steps.vars.outputs.tag }}
             type=raw,value=latest
             type=sha
           labels: |
             org.opencontainers.image.title=homelab-control-frontend
             org.opencontainers.image.description=Homelab Control Plane frontend UI
+            org.opencontainers.image.version=${{ steps.vars.outputs.version }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
 
-      - name: Build and push frontend
+      - name: Build and push frontend (GHCR)
         uses: docker/build-push-action@v6
         with:
           context: ./apps/frontend
           file: ./apps/frontend/Dockerfile
           push: true
-          tags: ${{ steps.meta_frontend.outputs.tags }}
-          labels: ${{ steps.meta_frontend.outputs.labels }}
+          tags: ${{ steps.meta_frontend_ghcr.outputs.tags }}
+          labels: ${{ steps.meta_frontend_ghcr.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Login to Docker Hub
+        if: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Docker meta (backend Docker Hub)
+        if: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
+        id: meta_backend_hub
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/homelab-control-backend
+          tags: |
+            type=raw,value=${{ steps.vars.outputs.version }}
+            type=raw,value=${{ steps.vars.outputs.tag }}
+            type=raw,value=latest
+            type=sha
+
+      - name: Build and push backend (Docker Hub)
+        if: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ./apps/backend
+          file: ./apps/backend/Dockerfile
+          push: true
+          tags: ${{ steps.meta_backend_hub.outputs.tags }}
+          labels: ${{ steps.meta_backend_hub.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Docker meta (frontend Docker Hub)
+        if: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
+        id: meta_frontend_hub
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/homelab-control-frontend
+          tags: |
+            type=raw,value=${{ steps.vars.outputs.version }}
+            type=raw,value=${{ steps.vars.outputs.tag }}
+            type=raw,value=latest
+            type=sha
+
+      - name: Build and push frontend (Docker Hub)
+        if: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ./apps/frontend
+          file: ./apps/frontend/Dockerfile
+          push: true
+          tags: ${{ steps.meta_frontend_hub.outputs.tags }}
+          labels: ${{ steps.meta_frontend_hub.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Create GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          draft: false
+          prerelease: false

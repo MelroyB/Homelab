@@ -20,6 +20,14 @@ Single-node homelab server (Docker Engine) with persistent local storage.
 docker compose up -d --build
 ```
 
+To deploy from published images instead of local builds:
+
+```bash
+BACKEND_IMAGE=ghcr.io/<owner>/<repo>-backend:v0.1.0 \
+FRONTEND_IMAGE=ghcr.io/<owner>/<repo>-frontend:v0.1.0 \
+docker compose -f docker-compose.yml -f docker-compose.publish.yml up -d
+```
+
 5. Verify readiness:
 
 ```bash

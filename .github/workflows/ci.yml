@@ -3,6 +3,8 @@ name: CI
 on:
   push:
     branches: ["main", "develop"]
+    tags: ["v*.*.*"]
+  workflow_dispatch:
   pull_request:
 
 jobs:
@@ -56,5 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Prepare env
+        run: cp .env.example .env
       - name: Validate compose
         run: docker compose config >/dev/null

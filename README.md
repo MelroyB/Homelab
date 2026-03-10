@@ -84,3 +84,22 @@ See [docs/architecture.md](docs/architecture.md) for details and the dependency 
 - `socket-proxy` limits Docker API surface for the backend
 
 See [docs/security.md](docs/security.md).
+
+## Publishing Automation
+
+This repository is prepared for GitHub publishing with automated CI and release pipelines:
+
+- CI: lint, test, build, compose validation
+- Docker publish on version tags (`v*.*.*`) to GHCR
+- Optional Docker Hub publish when secrets are configured
+- Automatic GitHub release creation with generated release notes
+
+See [docs/publishing.md](docs/publishing.md) for the exact setup and release flow.
+
+To run using published images instead of local builds, use:
+
+```bash
+BACKEND_IMAGE=ghcr.io/<owner>/<repo>-backend:v0.1.0 \
+FRONTEND_IMAGE=ghcr.io/<owner>/<repo>-frontend:v0.1.0 \
+docker compose -f docker-compose.yml -f docker-compose.publish.yml up -d
+```

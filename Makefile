@@ -2,7 +2,7 @@ SHELL := /bin/bash
 
 PROJECT_NAME ?= homelab
 
-.PHONY: help install up down restart logs ps lint format test test-backend test-frontend bootstrap-admin seed-services migrate makemigration clean
+.PHONY: help install up down restart logs ps lint format test test-backend test-frontend bootstrap-admin seed-services migrate makemigration release-tag clean
 
 help:
 	@echo "Targets:"
@@ -19,6 +19,7 @@ help:
 	@echo "  seed-services    Seed service registry"
 	@echo "  migrate          Run Alembic migrations to head"
 	@echo "  makemigration    Create new Alembic revision (name=<slug>)"
+	@echo "  release-tag      Create and push version tag (version=<x.y.z>)"
 	@echo "  clean            Remove build artifacts"
 
 install:
@@ -70,6 +71,11 @@ migrate:
 
 makemigration:
 	cd apps/backend && alembic revision --autogenerate -m "$(name)"
+
+release-tag:
+	@test -n "$(version)" || (echo "Usage: make release-tag version=0.1.0" && exit 1)
+	git tag -a v$(version) -m "Release v$(version)"
+	git push origin v$(version)
 
 clean:
 	rm -rf apps/frontend/dist apps/frontend/node_modules apps/backend/.pytest_cache apps/backend/.ruff_cache
