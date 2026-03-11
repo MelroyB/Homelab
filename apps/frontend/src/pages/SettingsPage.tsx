@@ -95,7 +95,8 @@ export function SettingsPage() {
   ) => {
     updateProfile({
       dhcp_reservations: (profile?.dhcp_reservations ?? []).map(
-        (item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)
+        (item, itemIndex) =>
+          itemIndex === index ? { ...item, ...patch } : item
       )
     });
   };
@@ -202,8 +203,14 @@ export function SettingsPage() {
       setError("Voeg minimaal 1 authoritative domein toe.");
       return;
     }
-    if (profile.enable_ntp && ntpServers.length === 0 && !profile.ntp_local_clock) {
-      setError("Voeg minimaal 1 NTP server toe of activeer local clock fallback.");
+    if (
+      profile.enable_ntp &&
+      ntpServers.length === 0 &&
+      !profile.ntp_local_clock
+    ) {
+      setError(
+        "Voeg minimaal 1 NTP server toe of activeer local clock fallback."
+      );
       return;
     }
 
@@ -215,7 +222,8 @@ export function SettingsPage() {
         lease: item.lease?.trim() || null
       }))
       .filter(
-        (item) => item.mac || item.ip || item.hostname !== null || item.lease !== null
+        (item) =>
+          item.mac || item.ip || item.hostname !== null || item.lease !== null
       );
 
     if (profile.enable_dnsmasq) {
@@ -286,12 +294,16 @@ export function SettingsPage() {
             <input
               type="checkbox"
               checked={profile.enable_dnsmasq}
-              onChange={(e) => updateProfile({ enable_dnsmasq: e.target.checked })}
+              onChange={(e) =>
+                updateProfile({ enable_dnsmasq: e.target.checked })
+              }
             />
             Functionaliteit inschakelen
           </label>
           {!profile.enable_dnsmasq ? (
-            <p>dnsmasq is uitgeschakeld. De container wordt gestopt bij apply.</p>
+            <p>
+              dnsmasq is uitgeschakeld. De container wordt gestopt bij apply.
+            </p>
           ) : null}
 
           <label>
@@ -327,7 +339,9 @@ export function SettingsPage() {
             <input
               disabled={!profile.enable_dnsmasq}
               value={profile.dhcp_range_end}
-              onChange={(e) => updateProfile({ dhcp_range_end: e.target.value })}
+              onChange={(e) =>
+                updateProfile({ dhcp_range_end: e.target.value })
+              }
             />
           </label>
 
@@ -417,7 +431,10 @@ export function SettingsPage() {
             <p>Nog geen reserveringen ingesteld.</p>
           ) : null}
           {(profile.dhcp_reservations ?? []).map((item, index) => (
-            <div key={`${index}-${item.mac}-${item.ip}`} className="inline-form">
+            <div
+              key={`${index}-${item.mac}-${item.ip}`}
+              className="inline-form"
+            >
               <label>
                 MAC
                 <input
@@ -446,7 +463,9 @@ export function SettingsPage() {
                   disabled={!profile.enable_dnsmasq}
                   value={item.hostname ?? ""}
                   onChange={(e) =>
-                    updateReservation(index, { hostname: e.target.value || null })
+                    updateReservation(index, {
+                      hostname: e.target.value || null
+                    })
                   }
                   placeholder="printer"
                 />
@@ -486,7 +505,9 @@ export function SettingsPage() {
             <input
               type="checkbox"
               checked={profile.enable_bind9}
-              onChange={(e) => updateProfile({ enable_bind9: e.target.checked })}
+              onChange={(e) =>
+                updateProfile({ enable_bind9: e.target.checked })
+              }
             />
             Functionaliteit inschakelen
           </label>
@@ -517,7 +538,9 @@ export function SettingsPage() {
               disabled={!profile.enable_bind9}
               value={profile.zone_ttl}
               onChange={(e) =>
-                updateProfile({ zone_ttl: Number.parseInt(e.target.value, 10) || 60 })
+                updateProfile({
+                  zone_ttl: Number.parseInt(e.target.value, 10) || 60
+                })
               }
             />
           </label>
@@ -573,7 +596,9 @@ export function SettingsPage() {
                   list="dns-record-type-options"
                   value={record.type}
                   onChange={(e) =>
-                    updateDnsRecord(index, { type: e.target.value.toUpperCase() })
+                    updateDnsRecord(index, {
+                      type: e.target.value.toUpperCase()
+                    })
                   }
                   placeholder="A"
                 />
@@ -785,14 +810,20 @@ export function SettingsPage() {
               </thead>
               <tbody>
                 {leases.map((item) => (
-                  <tr key={`${item.mac}-${item.ip}-${item.expires_at ?? "never"}`}>
+                  <tr
+                    key={`${item.mac}-${item.ip}-${item.expires_at ?? "never"}`}
+                  >
                     <td>{item.ip}</td>
                     <td className="mono">{item.mac}</td>
                     <td>{item.hostname ?? "-"}</td>
                     <td>{formatExpiry(item.expires_at)}</td>
                     <td>
                       <span
-                        className={item.is_expired ? "badge badge-warn" : "badge badge-ok"}
+                        className={
+                          item.is_expired
+                            ? "badge badge-warn"
+                            : "badge badge-ok"
+                        }
                       >
                         {item.is_expired ? "expired" : "active"}
                       </span>

@@ -237,7 +237,9 @@ export function DockerManagerPage() {
                 <td>
                   {updatesByImage[container.image] ? (
                     <span title={updatesByImage[container.image].detail}>
-                      <StatusBadge value={updatesByImage[container.image].status} />
+                      <StatusBadge
+                        value={updatesByImage[container.image].status}
+                      />
                     </span>
                   ) : checkingUpdates ? (
                     "checking..."
@@ -330,8 +332,8 @@ export function DockerManagerPage() {
                       item.uiSupport === "yes"
                         ? "healthy"
                         : item.uiSupport === "partial"
-                        ? "degraded"
-                        : "unknown"
+                          ? "degraded"
+                          : "unknown"
                     }
                   />
                 </td>

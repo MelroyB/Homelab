@@ -198,7 +198,9 @@ function caddyConfigToForm(
 }
 
 function caddyFormToConfig(form: CaddyFormState): Record<string, unknown> {
-  const siteAddresses = form.enableHttps ? splitMultiline(form.siteAddresses) : [];
+  const siteAddresses = form.enableHttps
+    ? splitMultiline(form.siteAddresses)
+    : [];
   return {
     listen_port: form.listenPort,
     backend_upstream: form.backendUpstream.trim(),
@@ -213,7 +215,11 @@ function caddyFormToConfig(form: CaddyFormState): Record<string, unknown> {
 }
 
 function validateCaddyForm(form: CaddyFormState): string | null {
-  if (!Number.isInteger(form.listenPort) || form.listenPort < 1 || form.listenPort > 65535) {
+  if (
+    !Number.isInteger(form.listenPort) ||
+    form.listenPort < 1 ||
+    form.listenPort > 65535
+  ) {
     return "Listen poort moet tussen 1 en 65535 liggen.";
   }
   if (!form.backendUpstream.trim()) {
@@ -245,7 +251,9 @@ function parseDhcpRange(rangeValue: string): {
   end: string;
   lease: string;
 } {
-  const [start = "", end = "", lease = ""] = rangeValue.split(",").map((item) => item.trim());
+  const [start = "", end = "", lease = ""] = rangeValue
+    .split(",")
+    .map((item) => item.trim());
   return { start, end, lease };
 }
 
@@ -253,16 +261,19 @@ function dnsmasqConfigToForm(
   config: Record<string, unknown> | null | undefined
 ): DnsmasqFormState {
   const safe = config ?? {};
-  const ranges = readStringArray(
-    safe,
-    "dhcp_ranges",
-    [DEFAULT_DNSMASQ_FORM.dhcpRangeStart + "," + DEFAULT_DNSMASQ_FORM.dhcpRangeEnd + "," + DEFAULT_DNSMASQ_FORM.dhcpLease]
-  );
+  const ranges = readStringArray(safe, "dhcp_ranges", [
+    DEFAULT_DNSMASQ_FORM.dhcpRangeStart +
+      "," +
+      DEFAULT_DNSMASQ_FORM.dhcpRangeEnd +
+      "," +
+      DEFAULT_DNSMASQ_FORM.dhcpLease
+  ]);
   const primaryRange = parseDhcpRange(ranges[0] ?? "");
   return {
-    upstreamServers: readStringArray(safe, "upstream_servers", ["1.1.1.1", "1.0.0.1"]).join(
-      "\n"
-    ),
+    upstreamServers: readStringArray(safe, "upstream_servers", [
+      "1.1.1.1",
+      "1.0.0.1"
+    ]).join("\n"),
     domain: readString(safe, "domain", "homelab.local"),
     cacheSize: readNumber(safe, "cache_size", 1000),
     dhcpRangeStart: primaryRange.start || DEFAULT_DNSMASQ_FORM.dhcpRangeStart,
@@ -294,7 +305,11 @@ function validateDnsmasqForm(form: DnsmasqFormState): string | null {
   if (!Number.isInteger(form.cacheSize) || form.cacheSize < 10) {
     return "Cache size moet minimaal 10 zijn.";
   }
-  if (!form.dhcpRangeStart.trim() || !form.dhcpRangeEnd.trim() || !form.dhcpLease.trim()) {
+  if (
+    !form.dhcpRangeStart.trim() ||
+    !form.dhcpRangeEnd.trim() ||
+    !form.dhcpLease.trim()
+  ) {
     return "DHCP range start, end en lease zijn verplicht.";
   }
   return null;
@@ -312,7 +327,10 @@ function readBind9Records(config: Record<string, unknown>): Bind9Record[] {
         return null;
       }
       const name = typeof item["name"] === "string" ? item["name"].trim() : "";
-      const type = typeof item["type"] === "string" ? item["type"].trim().toUpperCase() : "";
+      const type =
+        typeof item["type"] === "string"
+          ? item["type"].trim().toUpperCase()
+          : "";
       const recordValue =
         typeof item["value"] === "string" ? item["value"].trim() : "";
       if (!name || !type || !recordValue) {
@@ -381,9 +399,10 @@ function ntpConfigToForm(
 ): NtpFormState {
   const safe = config ?? {};
   return {
-    servers: readStringArray(safe, "servers", ["time.cloudflare.com", "time.google.com"]).join(
-      "\n"
-    ),
+    servers: readStringArray(safe, "servers", [
+      "time.cloudflare.com",
+      "time.google.com"
+    ]).join("\n"),
     allowNetworks: readStringArray(safe, "allow_networks", []).join("\n"),
     listenInterfaces: readStringArray(safe, "listen_interfaces", []).join("\n"),
     iburst: readBoolean(safe, "iburst", true),
@@ -410,7 +429,11 @@ function validateNtpForm(form: NtpFormState): string | null {
   if (servers.length === 0 && !form.localClock) {
     return "Voeg minimaal 1 NTP-server toe of zet Local Clock fallback aan.";
   }
-  if (!Number.isInteger(form.localStratum) || form.localStratum < 1 || form.localStratum > 15) {
+  if (
+    !Number.isInteger(form.localStratum) ||
+    form.localStratum < 1 ||
+    form.localStratum > 15
+  ) {
     return "Local stratum moet tussen 1 en 15 liggen.";
   }
   return null;
@@ -422,10 +445,12 @@ export function ServiceDetailPage() {
   const [versions, setVersions] = useState<ConfigVersion[]>([]);
   const [rawConfig, setRawConfig] = useState("");
   const [formConfigText, setFormConfigText] = useState('{\n  "records": []\n}');
-  const [caddyForm, setCaddyForm] = useState<CaddyFormState>(DEFAULT_CADDY_FORM);
+  const [caddyForm, setCaddyForm] =
+    useState<CaddyFormState>(DEFAULT_CADDY_FORM);
   const [dnsmasqForm, setDnsmasqForm] =
     useState<DnsmasqFormState>(DEFAULT_DNSMASQ_FORM);
-  const [bind9Form, setBind9Form] = useState<Bind9FormState>(DEFAULT_BIND9_FORM);
+  const [bind9Form, setBind9Form] =
+    useState<Bind9FormState>(DEFAULT_BIND9_FORM);
   const [ntpForm, setNtpForm] = useState<NtpFormState>(DEFAULT_NTP_FORM);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -562,7 +587,9 @@ export function ServiceDetailPage() {
     try {
       const response = await setServiceEnabled(slug, enabled);
       const warningSuffix =
-        response.warnings.length > 0 ? ` (warnings: ${response.warnings.join("; ")})` : "";
+        response.warnings.length > 0
+          ? ` (warnings: ${response.warnings.join("; ")})`
+          : "";
       setResult(
         `${enabled ? "enable" : "disable"}: ${response.message}${warningSuffix}`
       );
@@ -664,7 +691,8 @@ export function ServiceDetailPage() {
         ))}
       </div>
       <p>
-        Managed enabled state: <strong>{service.service.enabled ? "enabled" : "disabled"}</strong>
+        Managed enabled state:{" "}
+        <strong>{service.service.enabled ? "enabled" : "disabled"}</strong>
       </p>
 
       {error ? <div className="error">{error}</div> : null}
@@ -835,7 +863,10 @@ export function ServiceDetailPage() {
                 <input
                   value={dnsmasqForm.domain}
                   onChange={(e) =>
-                    setDnsmasqForm((prev) => ({ ...prev, domain: e.target.value }))
+                    setDnsmasqForm((prev) => ({
+                      ...prev,
+                      domain: e.target.value
+                    }))
                   }
                   placeholder="homelab.local"
                 />
@@ -890,7 +921,10 @@ export function ServiceDetailPage() {
                 <input
                   value={dnsmasqForm.dhcpLease}
                   onChange={(e) =>
-                    setDnsmasqForm((prev) => ({ ...prev, dhcpLease: e.target.value }))
+                    setDnsmasqForm((prev) => ({
+                      ...prev,
+                      dhcpLease: e.target.value
+                    }))
                   }
                   placeholder="12h"
                 />
@@ -901,7 +935,10 @@ export function ServiceDetailPage() {
                 <input
                   value={dnsmasqForm.router}
                   onChange={(e) =>
-                    setDnsmasqForm((prev) => ({ ...prev, router: e.target.value }))
+                    setDnsmasqForm((prev) => ({
+                      ...prev,
+                      router: e.target.value
+                    }))
                   }
                   placeholder="192.168.50.1"
                 />
@@ -932,7 +969,10 @@ export function ServiceDetailPage() {
                 <input
                   value={bind9Form.primaryNs}
                   onChange={(e) =>
-                    setBind9Form((prev) => ({ ...prev, primaryNs: e.target.value }))
+                    setBind9Form((prev) => ({
+                      ...prev,
+                      primaryNs: e.target.value
+                    }))
                   }
                   placeholder="ns1.homelab.local."
                 />
@@ -943,7 +983,10 @@ export function ServiceDetailPage() {
                 <input
                   value={bind9Form.adminEmail}
                   onChange={(e) =>
-                    setBind9Form((prev) => ({ ...prev, adminEmail: e.target.value }))
+                    setBind9Form((prev) => ({
+                      ...prev,
+                      adminEmail: e.target.value
+                    }))
                   }
                   placeholder="admin.homelab.local."
                 />
@@ -966,12 +1009,17 @@ export function ServiceDetailPage() {
 
               <h3>DNS records</h3>
               {bind9Form.records.map((record, index) => (
-                <div key={`${index}-${record.name}-${record.type}`} className="inline-form">
+                <div
+                  key={`${index}-${record.name}-${record.type}`}
+                  className="inline-form"
+                >
                   <label>
                     Name
                     <input
                       value={record.name}
-                      onChange={(e) => updateBind9Record(index, "name", e.target.value)}
+                      onChange={(e) =>
+                        updateBind9Record(index, "name", e.target.value)
+                      }
                       placeholder="api"
                     />
                   </label>
@@ -979,7 +1027,9 @@ export function ServiceDetailPage() {
                     Type
                     <select
                       value={record.type}
-                      onChange={(e) => updateBind9Record(index, "type", e.target.value)}
+                      onChange={(e) =>
+                        updateBind9Record(index, "type", e.target.value)
+                      }
                     >
                       <option value="A">A</option>
                       <option value="AAAA">AAAA</option>
@@ -995,7 +1045,9 @@ export function ServiceDetailPage() {
                     Value
                     <input
                       value={record.value}
-                      onChange={(e) => updateBind9Record(index, "value", e.target.value)}
+                      onChange={(e) =>
+                        updateBind9Record(index, "value", e.target.value)
+                      }
                       placeholder="192.168.50.10"
                     />
                   </label>
@@ -1008,7 +1060,11 @@ export function ServiceDetailPage() {
                   </button>
                 </div>
               ))}
-              <button type="button" className="btn btn-secondary" onClick={addBind9Record}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={addBind9Record}
+              >
                 Record toevoegen
               </button>
             </>
@@ -1061,7 +1117,10 @@ export function ServiceDetailPage() {
                   type="checkbox"
                   checked={ntpForm.iburst}
                   onChange={(e) =>
-                    setNtpForm((prev) => ({ ...prev, iburst: e.target.checked }))
+                    setNtpForm((prev) => ({
+                      ...prev,
+                      iburst: e.target.checked
+                    }))
                   }
                 />
                 Gebruik iburst voor snellere initiële sync
@@ -1086,7 +1145,10 @@ export function ServiceDetailPage() {
                   type="checkbox"
                   checked={ntpForm.localClock}
                   onChange={(e) =>
-                    setNtpForm((prev) => ({ ...prev, localClock: e.target.checked }))
+                    setNtpForm((prev) => ({
+                      ...prev,
+                      localClock: e.target.checked
+                    }))
                   }
                 />
                 Local Clock fallback activeren
