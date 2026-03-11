@@ -52,6 +52,7 @@ make restart
   - `POST /api/v1/settings/mail/apply`
   - `GET /api/v1/settings/mail/webmail/url`
 - Run `mail/dns/suggestions` first to validate domain/mailbox/DKIM/SPF/DMARC inputs before apply.
+- `mail/apply` now enforces the same validation server-side and blocks apply on setup errors.
 - Apply response includes suggested DNS records for `MX`, `SPF`, `DMARC`, and `DKIM`.
 - Mail apply writes runtime provisioning files under `data_dir/config/mailserver/`:
   - `accounts.cf`
@@ -59,6 +60,14 @@ make restart
   - `mailboxes.json`
   - `postfix-accounts.cf` (`{SHA512-CRYPT}` hashed passwords)
   - `postfix-virtual.cf`
+
+### Mail rollout sequence
+
+1. Configure/update mail profile in Settings.
+2. Run DNS setup check (`POST /api/v1/settings/mail/dns/suggestions`) until `valid=true`.
+3. Publish/verify suggested `MX`, `SPF`, `DKIM`, and `DMARC` records in your authoritative DNS.
+4. Run mail apply (`POST /api/v1/settings/mail/apply`).
+5. Validate webmail launch URL and mailbox login.
 
 ## Health monitoring
 

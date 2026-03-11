@@ -122,11 +122,17 @@ Apply behavior for each enabled flag:
 - DKIM/SPF/DMARC profile fields
 - mailbox definitions (email, password, aliases, quota, enabled)
 - DNS setup check endpoint (`/settings/mail/dns/suggestions`) with blocking errors + warnings
+- `mail/apply` reuses the same setup validation and refuses apply when blocking issues exist
 - DNS record suggestions for `MX`, `SPF`, `DMARC`, and `DKIM`
 - webmail launch URL resolution (optionally validated against a mailbox)
 - mail runtime provisioning files include both generic and Docker Mailserver-compatible formats:
   - `accounts.cf`, `aliases.cf`, `mailboxes.json`
   - `postfix-accounts.cf` (`{SHA512-CRYPT}` hashes), `postfix-virtual.cf`
+
+`/settings/mail/dns/suggestions` response model:
+- `valid: boolean` (false when one or more `error` issues exist)
+- `records: DnsRecord[]` (empty when `valid=false`)
+- `issues: MailSetupIssue[]` where `level` is `error` or `warning`
 
 ## Error conventions
 

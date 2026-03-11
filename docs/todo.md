@@ -27,7 +27,9 @@
 - [x] Add mail runtime provisioning baseline (`accounts.cf`, `aliases.cf`, `mailboxes.json`, `postfix-accounts.cf`, `postfix-virtual.cf`)
 - [x] Add webmail launch URL endpoint (`/settings/mail/webmail/url`) + UI launch helper
 - [x] Add guided mail domain setup check endpoint (`/settings/mail/dns/suggestions`) with DNS record preview + validation issues
+- [x] Reuse mail setup validation inside `mail/apply` to block invalid apply requests
 - [ ] Add managed mail stack services (`mailserver`, `webmail`) in compose/runtime with persistent state
+- [ ] Add one-click publish of suggested mail DNS records into managed authoritative zones
 - [ ] Add mailbox runtime provisioning and password rotation (apply to mail backend, not only config model)
 - [ ] Add mail queue + delivery status visibility in UI
 - [ ] Add DKIM key lifecycle management (generate, rotate, publish selectors)

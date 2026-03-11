@@ -66,9 +66,10 @@
 ### Phase 7: mail platform (planned)
 
 - [x] Managed mail settings baseline (service registry + profile/apply API + mailbox model)
-- [x] Mail runtime provisioning baseline (`accounts.cf`, `aliases.cf`, `mailboxes.json`)
+- [x] Mail runtime provisioning baseline (`accounts.cf`, `aliases.cf`, `mailboxes.json`, `postfix-accounts.cf`, `postfix-virtual.cf`)
 - [x] Webmail URL integration baseline (profile/apply + launch URL endpoint)
 - [x] Guided mail DNS setup baseline (`/settings/mail/dns/suggestions` with validation issues + record preview)
+- [x] Mail apply guard baseline (same setup validation enforced in `mail/apply`)
 - [ ] Managed mail stack deployment (SMTP/IMAP + webmail containers/runtime)
 - [ ] DKIM key generation and rotation flow
 - [x] SPF and DMARC policy helper with DNS record generation
@@ -95,6 +96,7 @@
 - Mail service placeholders are registered in managed services (`mailserver`, `webmail`) for lifecycle control and visibility.
 - Mail settings API baseline shipped (`/settings/mail/profile`, `/settings/mail/apply`) including DKIM/SPF/DMARC fields and mailbox definitions.
 - Mail DNS setup-check endpoint shipped (`/settings/mail/dns/suggestions`) with validation feedback and record preview.
+- Mail apply now reuses setup validation and blocks invalid configurations before runtime writes/reload.
 - DHCP scope options, reservations, and live lease visibility shipped.
 - Manual DNS record management shipped in Settings (with common record type presets).
 - Custom authoritative BIND zone list shipped via Settings (`authoritative_domains`).
@@ -119,7 +121,7 @@
 16. Add plugin discovery and adapter loading
 17. Add UPS/power orchestration (NUT) for graceful shutdown paths
 18. Add managed mail stack (SMTP/IMAP + webmail + mailbox CRUD)
-19. Add DKIM/SPF/DMARC guided policy and DNS publishing helper
+19. Extend DKIM flow with key generation/rotation and optional DNS publishing helper
 20. Add mailbox observability (queue, delivery failures, reputation checks)
 
 ## Risks and mitigations
