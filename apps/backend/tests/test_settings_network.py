@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.api.deps import settings_singleton
+from app.api.v1.endpoints import settings as settings_endpoint
 
 
 def _login(client):
@@ -20,6 +21,7 @@ def test_network_profile_has_dhcp_and_ntp_fields(client):
     response = client.get("/api/v1/settings/network/profile")
     assert response.status_code == 200
     data = response.json()
+    assert "authoritative_domains" in data
     assert "dhcp_authoritative" in data
     assert "dhcp_reservations" in data
     assert "dhcp_dns_servers" in data
@@ -53,3 +55,11 @@ def test_network_dhcp_leases_reads_dnsmasq_leasefile(client, tmp_path):
     assert item["mac"] == "aa:bb:cc:dd:ee:ff"
     assert item["ip"] == "192.168.50.120"
     assert item["hostname"] == "printer"
+
+
+def test_authoritative_domain_list_includes_primary_and_filters_invalid():
+    domains = settings_endpoint._authoritative_domain_list(
+        ["Example.com", "invalid domain", "example.com", "sub.example.net"],
+        primary_domain="homelab.local",
+    )
+    assert domains == ["homelab.local", "example.com", "sub.example.net"]

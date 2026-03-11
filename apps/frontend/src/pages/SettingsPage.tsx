@@ -36,6 +36,10 @@ function splitLines(value: string): string[] {
     .filter((line) => line.length > 0);
 }
 
+function normalizeDomain(value: string): string {
+  return value.trim().replace(/\.+$/, "").toLowerCase();
+}
+
 function formatExpiry(value: string | null): string {
   if (!value) {
     return "Never";
@@ -52,6 +56,7 @@ export function SettingsPage() {
   const [dnsServersText, setDnsServersText] = useState("");
   const [dhcpDnsServersText, setDhcpDnsServersText] = useState("");
   const [dhcpNtpServersText, setDhcpNtpServersText] = useState("");
+  const [authoritativeDomainsText, setAuthoritativeDomainsText] = useState("");
   const [ntpServersText, setNtpServersText] = useState("");
   const [leases, setLeases] = useState<DhcpLeaseEntry[]>([]);
   const [results, setResults] = useState<NetworkServiceApplyResult[]>([]);
@@ -67,6 +72,7 @@ export function SettingsPage() {
     setDnsServersText(profileData.dns_upstream_servers.join("\n"));
     setDhcpDnsServersText(profileData.dhcp_dns_servers.join("\n"));
     setDhcpNtpServersText(profileData.dhcp_ntp_servers.join("\n"));
+    setAuthoritativeDomainsText(profileData.authoritative_domains.join("\n"));
     setNtpServersText(profileData.ntp_servers.join("\n"));
     setLeases(leaseData.items);
   };
@@ -158,6 +164,13 @@ export function SettingsPage() {
     const dnsServers = splitLines(dnsServersText);
     const dhcpDnsServers = splitLines(dhcpDnsServersText);
     const dhcpNtpServers = splitLines(dhcpNtpServersText);
+    const authoritativeDomains = Array.from(
+      new Set(
+        [profile.domain, ...splitLines(authoritativeDomainsText)]
+          .map(normalizeDomain)
+          .filter((item) => item.length > 0)
+      )
+    );
     const ntpServers = splitLines(ntpServersText);
     const sourceRecords = profile.dns_records ?? [];
     const hasIncompleteRecord = sourceRecords.some((record) => {
@@ -183,6 +196,10 @@ export function SettingsPage() {
 
     if (dnsServers.length === 0) {
       setError("Voeg minimaal 1 DNS upstream server toe.");
+      return;
+    }
+    if (authoritativeDomains.length === 0) {
+      setError("Voeg minimaal 1 authoritative domein toe.");
       return;
     }
     if (ntpServers.length === 0 && !profile.ntp_local_clock) {
@@ -216,6 +233,7 @@ export function SettingsPage() {
         dns_upstream_servers: dnsServers,
         dhcp_dns_servers: dhcpDnsServers,
         dhcp_ntp_servers: dhcpNtpServers,
+        authoritative_domains: authoritativeDomains,
         ntp_servers: ntpServers,
         dns_records: dnsRecords,
         dhcp_reservations: reservations
@@ -433,6 +451,20 @@ export function SettingsPage() {
           </button>
 
           <h3>Authoritative DNS (BIND9)</h3>
+
+          <label>
+            Authoritative domeinen (1 per regel)
+            <textarea
+              rows={4}
+              value={authoritativeDomainsText}
+              onChange={(e) => setAuthoritativeDomainsText(e.target.value)}
+              placeholder={"homelab.local\nvoorbeeld.nl"}
+            />
+          </label>
+          <p>
+            Alle domeinen in deze lijst worden als zone in BIND9 geladen met
+            dezelfde records hieronder.
+          </p>
 
           <label>
             Zone TTL

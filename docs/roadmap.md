@@ -30,6 +30,7 @@
 - [x] Unified Network Stack profile apply for DNS + DHCP + NTP
 - [x] DHCP leases view and DHCP reservations management in Settings UI
 - [x] Manual DNS records management in Settings UI (`A`, `AAAA`, `CNAME`, `TXT`, `MX`, `NS`, `SRV`, `PTR`, `CAA`, `NAPTR`, `SPF`, `TLSA`, `LOC`, ...)
+- [x] Custom authoritative domains support in Settings (`authoritative_domains`) for BIND nameserver zones
 - [ ] syntax validation by native binaries (`dnsmasq --test`, `named-checkzone`)
 - [ ] safer apply with staged dry-run checks
 
@@ -67,20 +68,22 @@
 - Unified Settings-based Network Stack flow shipped (DNS + DHCP + NTP together).
 - DHCP scope options, reservations, and live lease visibility shipped.
 - Manual DNS record management shipped in Settings (with common record type presets).
+- Custom authoritative BIND zone list shipped via Settings (`authoritative_domains`).
 
 ## Backlog (prioritized)
 
 1. Define migration review/rollback policy and DB backup gate before destructive migrations
 2. Add per-service native config lint commands before apply
 3. Add record-type specific DNS validation/hints (for example MX priority, SRV shape, IP/FQDN validation)
-4. Add optimistic locking for concurrent config edits
-5. Add diff viewer for config versions
-6. Add dependency-aware service restart ordering
-7. Add scheduled backups and retention policy
-8. Add backup encryption and offsite replication
-9. Add WebSocket live status/streamed logs
-10. Add OIDC auth provider integration
-11. Add plugin discovery and adapter loading
+4. Split DNS records per authoritative domain (instead of one shared record set)
+5. Add optimistic locking for concurrent config edits
+6. Add diff viewer for config versions
+7. Add dependency-aware service restart ordering
+8. Add scheduled backups and retention policy
+9. Add backup encryption and offsite replication
+10. Add WebSocket live status/streamed logs
+11. Add OIDC auth provider integration
+12. Add plugin discovery and adapter loading
 
 ## Risks and mitigations
 

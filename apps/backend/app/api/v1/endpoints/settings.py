@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -33,6 +34,9 @@ from app.services.config.manager import ConfigManager
 from app.services.docker_gateway import DockerGateway
 
 router = APIRouter()
+DOMAIN_PATTERN = re.compile(
+    r"^(?=.{1,253}$)(?!-)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.(?!-)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$"
+)
 
 
 @router.get("/profile")
@@ -79,6 +83,78 @@ def _string_list(value: object, fallback: list[str]) -> list[str]:
         return fallback
     parsed = [str(item).strip() for item in value if str(item).strip()]
     return parsed if parsed else fallback
+
+
+def _normalize_domain(value: str) -> str:
+    return value.strip().strip(".").lower()
+
+
+def _domain_list(value: object, fallback: list[str]) -> list[str]:
+    source = value if isinstance(value, list) else fallback
+    seen: set[str] = set()
+    domains: list[str] = []
+    for item in source:
+        normalized = _normalize_domain(str(item))
+        if not normalized or not DOMAIN_PATTERN.fullmatch(normalized) or normalized in seen:
+            continue
+        seen.add(normalized)
+        domains.append(normalized)
+    return domains
+
+
+def _authoritative_domain_list(value: object, primary_domain: str) -> list[str]:
+    normalized_primary = _normalize_domain(primary_domain)
+    fallback = [normalized_primary] if normalized_primary else ["homelab.local"]
+    domains = _domain_list(value, fallback=fallback)
+    if normalized_primary and normalized_primary not in domains:
+        domains.insert(0, normalized_primary)
+    return domains if domains else fallback
+
+
+def _bind9_zone_file_container_path(service: ManagedService, settings: Settings) -> str:
+    config_path = Path(service.config_path)
+    data_dir = Path(settings.data_dir)
+    try:
+        relative = config_path.relative_to(data_dir)
+    except ValueError:
+        return "/homelab-data/config/bind9/zones/db.homelab.local"
+    return f"/homelab-data/{relative.as_posix()}"
+
+
+def _write_bind9_named_conf(
+    settings: Settings,
+    *,
+    authoritative_domains: list[str],
+    zone_file_container_path: str,
+) -> None:
+    config_dir = Path(settings.data_dir) / "config" / "bind9"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    named_conf_path = config_dir / "named.conf"
+
+    zone_blocks = "\n\n".join(
+        [
+            (
+                f'zone "{domain}" IN {{\n'
+                "    type master;\n"
+                f'    file "{zone_file_container_path}";\n'
+                "};"
+            )
+            for domain in authoritative_domains
+        ]
+    )
+
+    named_conf = (
+        "options {\n"
+        '    directory "/homelab-data/state/bind9/cache";\n'
+        "    recursion no;\n"
+        "    allow-query { any; };\n"
+        "    dnssec-validation auto;\n"
+        "    listen-on { any; };\n"
+        "    listen-on-v6 { any; };\n"
+        "};\n\n"
+        f"{zone_blocks}\n"
+    )
+    named_conf_path.write_text(named_conf, encoding="utf-8")
 
 
 def _reservation_list(value: object) -> list[DhcpReservation]:
@@ -252,8 +328,15 @@ def network_profile(
     dns_servers = dnsmasq_cfg.get("upstream_servers", ["1.1.1.1", "1.0.0.1"])
     ntp_servers = ntp_cfg.get("servers", ["time.cloudflare.com", "time.google.com"])
 
+    domain = _normalize_domain(str(dnsmasq_cfg.get("domain", "homelab.local"))) or "homelab.local"
+    authoritative_domains = _authoritative_domain_list(
+        bind9_cfg.get("authoritative_domains"),
+        primary_domain=domain,
+    )
+
     return NetworkStackProfile(
-        domain=str(dnsmasq_cfg.get("domain", "homelab.local")),
+        domain=domain,
+        authoritative_domains=authoritative_domains,
         router_ip=str(dnsmasq_cfg.get("router", "192.168.50.1")),
         dhcp_range_start=dhcp_start or "192.168.50.100",
         dhcp_range_end=dhcp_end or "192.168.50.200",
@@ -287,11 +370,21 @@ def apply_network_profile(
     payload: NetworkStackProfile,
     request: Request,
     db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
     current_user: User = Depends(require_admin),
     docker_gateway: DockerGateway = Depends(get_docker_gateway),
 ) -> NetworkStackApplyResponse:
     manager = ConfigManager(db, docker_gateway)
-    domain = payload.domain.strip()
+    domain = _normalize_domain(payload.domain)
+    if not domain or not DOMAIN_PATTERN.fullmatch(domain):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Domain is invalid. Use a valid fqdn like example.com.",
+        )
+    authoritative_domains = _authoritative_domain_list(
+        payload.authoritative_domains,
+        primary_domain=domain,
+    )
     dns_servers = [item.strip() for item in payload.dns_upstream_servers if item.strip()]
     dhcp_dns_servers = [item.strip() for item in payload.dhcp_dns_servers if item.strip()]
     dhcp_ntp_servers = [item.strip() for item in payload.dhcp_ntp_servers if item.strip()]
@@ -368,6 +461,7 @@ def apply_network_profile(
                 "dashboard_host": payload.dashboard_host.strip(),
                 "dashboard_ip": payload.dashboard_ip.strip(),
                 "records": bind_records,
+                "authoritative_domains": authoritative_domains,
             },
         ),
         (
@@ -385,6 +479,12 @@ def apply_network_profile(
     results: list[NetworkServiceApplyResult] = []
     for service_slug, config_json in service_payloads:
         service = _service_or_404(db, service_slug)
+        if service_slug == "bind9":
+            _write_bind9_named_conf(
+                settings,
+                authoritative_domains=authoritative_domains,
+                zone_file_container_path=_bind9_zone_file_container_path(service, settings),
+            )
         version, warnings = manager.apply_candidate(
             service=service,
             actor=current_user,

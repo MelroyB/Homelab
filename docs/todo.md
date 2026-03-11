@@ -16,7 +16,9 @@
 - [x] Add DHCP leases visibility in Settings
 - [x] Add DHCP scope options and reservation management in Settings
 - [x] Add manual DNS records management in Settings (`name`, `type`, `value`)
+- [x] Add custom authoritative domains list for BIND nameserver zones in Settings
 - [ ] Add DNS record-type specific validation/hints (A/AAAA IP validation, MX priority, SRV structure)
+- [ ] Add per-domain DNS record sets and SOA/NS defaults for multi-zone operation
 - [ ] Add API pagination and filtering for audit and logs
 - [ ] Add config diff endpoint and frontend visual diff
 - [ ] Add scheduled and retained backups

@@ -72,10 +72,15 @@ FastAPI exposes OpenAPI docs at:
 `/settings/network/*` is intended as the unified management surface for:
 - dnsmasq DHCP scope/options/reservations
 - dnsmasq upstream resolver settings
-- BIND9 zone defaults and manual DNS records (`dns_records`)
+- BIND9 zone defaults, manual DNS records (`dns_records`), and authoritative domains (`authoritative_domains`)
 - NTP upstream/local-fallback settings
 
-`NetworkStackProfile` now includes `dns_records: DnsRecord[]`:
+`NetworkStackProfile` includes `authoritative_domains: string[]`:
+- each value is a normalized fqdn zone name (`example.com`, `homelab.local`)
+- backend ensures primary `domain` is always included in `authoritative_domains`
+- invalid or duplicate domain values are filtered
+
+`NetworkStackProfile` includes `dns_records: DnsRecord[]`:
 - `name`: record name (`@`, `api`, `dashboard`, etc.)
 - `type`: record type (`A`, `AAAA`, `CNAME`, `TXT`, `MX`, `NS`, `SRV`, `PTR`, `CAA`, `NAPTR`, `SPF`, `TLSA`, `LOC`, ...)
 - `value`: record value (IP, hostname, text, target, ...)
@@ -84,6 +89,8 @@ When `dns_records` is empty at apply time, backend fallback keeps creating basel
 - `nameserver_host` / `nameserver_ip`
 - `api_host` / `api_ip`
 - `dashboard_host` / `dashboard_ip`
+
+During apply, backend also writes `named.conf` with one `zone` block per `authoritative_domains` entry.
 
 ## Error conventions
 

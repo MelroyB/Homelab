@@ -168,6 +168,7 @@ export interface DockerImageUpdatesResponse {
 
 export interface NetworkStackProfile {
   domain: string;
+  authoritative_domains: string[];
   router_ip: string;
   dhcp_range_start: string;
   dhcp_range_end: string;
