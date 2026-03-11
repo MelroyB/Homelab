@@ -38,8 +38,8 @@
 ### Phase 3: NTP and monitoring/logging (in progress)
 
 - [x] NTP config forms + validation
-- [ ] integrated metrics stack (Prometheus/Grafana)
-- [ ] alert hooks (email/webhook)
+- [ ] integrated observability stack (Prometheus + Grafana + Loki + Alertmanager)
+- [ ] alert hooks and actionable runbooks (email/webhook)
 
 ### Phase 4: backup/restore and rollback hardening (planned)
 
@@ -53,6 +53,13 @@
 - [ ] OIDC providers
 - [ ] HA controller architecture
 - [ ] plugin SDK for third-party service adapters
+- [ ] SSO gateway integration for downstream services (Authelia/Authentik)
+
+### Phase 6: core homelab platform services (planned)
+
+- [ ] secure remote access service (WireGuard/Headscale)
+- [ ] backup target service for offsite copies (MinIO/S3-compatible)
+- [ ] power event and graceful shutdown management (NUT/UPS tooling)
 
 ## Milestones
 
@@ -76,17 +83,21 @@
 
 1. Define migration review/rollback policy and DB backup gate before destructive migrations
 2. Add per-service native config lint commands before apply
-3. Add record-type specific DNS validation/hints (for example MX priority, SRV shape, IP/FQDN validation)
-4. Split DNS records per authoritative domain (instead of one shared record set)
-5. Add optimistic locking for concurrent config edits
-6. Add diff viewer for config versions
-7. Add dependency-aware service restart ordering
-8. Add TLS certificate expiry/renewal visibility and diagnostics in UI
-9. Add scheduled backups and retention policy
-10. Add backup encryption and offsite replication
-11. Add WebSocket live status/streamed logs
-12. Add OIDC auth provider integration
-13. Add plugin discovery and adapter loading
+3. Add secure remote-access service management (WireGuard/Headscale)
+4. Add integrated observability services (Prometheus, Grafana, Loki, Alertmanager)
+5. Add SSO gateway/IdP integration baseline (Authelia/Authentik + OIDC flow)
+6. Add record-type specific DNS validation/hints (for example MX priority, SRV shape, IP/FQDN validation)
+7. Split DNS records per authoritative domain (instead of one shared record set)
+8. Add optimistic locking for concurrent config edits
+9. Add diff viewer for config versions
+10. Add dependency-aware service restart ordering
+11. Add TLS certificate expiry/renewal visibility and diagnostics in UI
+12. Add scheduled backups and retention policy
+13. Add backup encryption and offsite replication
+14. Add WebSocket live status/streamed logs
+15. Add OIDC auth provider integration
+16. Add plugin discovery and adapter loading
+17. Add UPS/power orchestration (NUT) for graceful shutdown paths
 
 ## Risks and mitigations
 

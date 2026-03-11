@@ -21,6 +21,11 @@
 - [ ] Add DNS record-type specific validation/hints (A/AAAA IP validation, MX priority, SRV structure)
 - [ ] Add per-domain DNS record sets and SOA/NS defaults for multi-zone operation
 - [ ] Add TLS certificate expiry status and renewal diagnostics in UI
+- [ ] Add WireGuard/Headscale service management for secure remote homelab access
+- [ ] Add SSO gateway/IdP management (Authelia/Authentik) for downstream apps
+- [ ] Add observability service pack (Prometheus + Grafana + Loki + Alertmanager)
+- [ ] Add offsite backup target integration (MinIO/S3-compatible)
+- [ ] Add UPS/NUT service management for power events and graceful shutdown
 - [ ] Add API pagination and filtering for audit and logs
 - [ ] Add config diff endpoint and frontend visual diff
 - [ ] Add scheduled and retained backups

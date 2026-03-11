@@ -104,6 +104,16 @@ flowchart LR
 - `infra` network: managed infrastructure services + backend
 - persistent storage: single shared Docker volume (`homelab_data`) with per-service subdirectories
 
+## Essential service gaps
+
+These core homelab capabilities are not yet integrated as first-class managed services:
+
+- secure remote access (`WireGuard` / `Headscale`)
+- observability stack (`Prometheus`, `Grafana`, `Loki`, `Alertmanager`)
+- SSO gateway/IdP layer (`Authelia` / `Authentik`)
+- offsite backup target (`MinIO` / S3-compatible)
+- UPS/power orchestration (`NUT`)
+
 ## Future Kubernetes migration path
 
 - Current adapter boundaries map to future operators/controllers.
