@@ -29,6 +29,7 @@
 - [x] Guided Caddy form in Service Detail UI
 - [x] Let's Encrypt certificate issuance controls in guided Caddy form
 - [x] Unified Network Stack profile apply for DNS + DHCP + NTP
+- [x] Service enable toggles in unified Settings (`enable_dnsmasq`, `enable_bind9`, `enable_ntp`) with stop-on-disable/start-on-enable behavior
 - [x] DHCP leases view and DHCP reservations management in Settings UI
 - [x] Manual DNS records management in Settings UI (`A`, `AAAA`, `CNAME`, `TXT`, `MX`, `NS`, `SRV`, `PTR`, `CAA`, `NAPTR`, `SPF`, `TLSA`, `LOC`, ...)
 - [x] Custom authoritative domains support in Settings (`authoritative_domains`) for BIND nameserver zones
@@ -75,6 +76,7 @@
 - Guided service config forms shipped for Caddy, dnsmasq, BIND9, and NTP.
 - Caddy guided flow supports Let's Encrypt domains/email/staging controls.
 - Unified Settings-based Network Stack flow shipped (DNS + DHCP + NTP together).
+- Unified Settings-based service toggles shipped (disable stops containers; re-enable starts before apply).
 - DHCP scope options, reservations, and live lease visibility shipped.
 - Manual DNS record management shipped in Settings (with common record type presets).
 - Custom authoritative BIND zone list shipped via Settings (`authoritative_domains`).

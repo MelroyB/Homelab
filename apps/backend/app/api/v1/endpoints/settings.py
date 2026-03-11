@@ -74,6 +74,13 @@ def _active_config_json(db: Session, slug: str) -> dict:
     return {}
 
 
+def _service_enabled_map(db: Session, slugs: list[str]) -> dict[str, bool]:
+    rows = db.execute(
+        select(ManagedService.slug, ManagedService.enabled).where(ManagedService.slug.in_(slugs))
+    ).all()
+    return {str(slug): bool(enabled) for slug, enabled in rows}
+
+
 def _default_zone_serial() -> int:
     return int(datetime.now(timezone.utc).strftime("%Y%m%d01"))
 
@@ -333,10 +340,14 @@ def network_profile(
         bind9_cfg.get("authoritative_domains"),
         primary_domain=domain,
     )
+    enable_flags = _service_enabled_map(db, ["dnsmasq", "bind9", "ntp"])
 
     return NetworkStackProfile(
         domain=domain,
         authoritative_domains=authoritative_domains,
+        enable_dnsmasq=enable_flags.get("dnsmasq", True),
+        enable_bind9=enable_flags.get("bind9", True),
+        enable_ntp=enable_flags.get("ntp", True),
         router_ip=str(dnsmasq_cfg.get("router", "192.168.50.1")),
         dhcp_range_start=dhcp_start or "192.168.50.100",
         dhcp_range_end=dhcp_end or "192.168.50.200",
@@ -427,9 +438,10 @@ def apply_network_profile(
         if item.mac.strip() and item.ip.strip()
     ]
 
-    service_payloads: list[tuple[str, dict]] = [
+    service_payloads: list[tuple[str, bool, dict]] = [
         (
             "dnsmasq",
+            payload.enable_dnsmasq,
             {
                 "upstream_servers": dns_servers,
                 "domain": domain,
@@ -449,6 +461,7 @@ def apply_network_profile(
         ),
         (
             "bind9",
+            payload.enable_bind9,
             {
                 "ttl": payload.zone_ttl,
                 "primary_ns": _to_fqdn(payload.nameserver_host, domain),
@@ -466,6 +479,7 @@ def apply_network_profile(
         ),
         (
             "ntp",
+            payload.enable_ntp,
             {
                 "servers": ntp_servers,
                 "iburst": payload.ntp_iburst,
@@ -477,8 +491,49 @@ def apply_network_profile(
     ]
 
     results: list[NetworkServiceApplyResult] = []
-    for service_slug, config_json in service_payloads:
+    for service_slug, service_enabled, config_json in service_payloads:
         service = _service_or_404(db, service_slug)
+        service.enabled = service_enabled
+
+        runtime_state = str(
+            docker_gateway.inspect(service.container_name).get("state", "unknown")
+        ).lower()
+
+        if not service_enabled:
+            stop_status = "disabled"
+            stop_message = "Service disabled; container already stopped."
+            warnings: list[str] = []
+            if runtime_state == "running":
+                ok_stop, stop_result = docker_gateway.action(service.container_name, "stop")
+                if ok_stop:
+                    stop_status = "stopped"
+                    stop_message = "Service disabled and container stopped."
+                else:
+                    stop_status = "failed"
+                    stop_message = "Service disabled, but stopping container failed."
+                    warnings.append(stop_result)
+            elif runtime_state == "not_found":
+                stop_message = "Service disabled; container not found."
+
+            results.append(
+                NetworkServiceApplyResult(
+                    service_slug=service_slug,
+                    status=stop_status,
+                    version=None,
+                    message=stop_message,
+                    warnings=warnings,
+                )
+            )
+            continue
+
+        pre_warnings: list[str] = []
+        if runtime_state in {"created", "exited", "dead", "paused"}:
+            ok_start, start_result = docker_gateway.action(service.container_name, "start")
+            if not ok_start:
+                pre_warnings.append(f"Start before apply failed: {start_result}")
+        elif runtime_state == "not_found":
+            pre_warnings.append("Container not found; apply may fail on reload/restart.")
+
         if service_slug == "bind9":
             _write_bind9_named_conf(
                 settings,
@@ -494,6 +549,7 @@ def apply_network_profile(
                 auto_reload=True,
             ),
         )
+        warnings = pre_warnings + warnings
         results.append(
             NetworkServiceApplyResult(
                 service_slug=service_slug,
@@ -504,7 +560,7 @@ def apply_network_profile(
             )
         )
 
-    success = all(item.status == "applied" for item in results)
+    success = all(item.status in {"applied", "disabled", "stopped"} for item in results)
 
     audit = AuditService(db)
     audit.record(

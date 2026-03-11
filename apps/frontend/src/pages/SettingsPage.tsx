@@ -180,7 +180,7 @@ export function SettingsPage() {
         record.name.trim() && record.type.trim() && record.value.trim();
       return Boolean(hasAny && !hasAll);
     });
-    if (hasIncompleteRecord) {
+    if (profile.enable_bind9 && hasIncompleteRecord) {
       setError(
         "Vul elke DNS record volledig in (name, type, value) of maak de regel leeg."
       );
@@ -194,15 +194,15 @@ export function SettingsPage() {
       }))
       .filter((record) => record.name && record.type && record.value);
 
-    if (dnsServers.length === 0) {
+    if (profile.enable_dnsmasq && dnsServers.length === 0) {
       setError("Voeg minimaal 1 DNS upstream server toe.");
       return;
     }
-    if (authoritativeDomains.length === 0) {
+    if (profile.enable_bind9 && authoritativeDomains.length === 0) {
       setError("Voeg minimaal 1 authoritative domein toe.");
       return;
     }
-    if (ntpServers.length === 0 && !profile.ntp_local_clock) {
+    if (profile.enable_ntp && ntpServers.length === 0 && !profile.ntp_local_clock) {
       setError("Voeg minimaal 1 NTP server toe of activeer local clock fallback.");
       return;
     }
@@ -218,12 +218,12 @@ export function SettingsPage() {
         (item) => item.mac || item.ip || item.hostname !== null || item.lease !== null
       );
 
-    for (const reservation of reservations) {
-      if (!reservation.mac || !reservation.ip) {
-        setError(
-          "Elke DHCP reservering moet minimaal MAC en IP bevatten."
-        );
-        return;
+    if (profile.enable_dnsmasq) {
+      for (const reservation of reservations) {
+        if (!reservation.mac || !reservation.ip) {
+          setError("Elke DHCP reservering moet minimaal MAC en IP bevatten.");
+          return;
+        }
       }
     }
 
@@ -282,6 +282,17 @@ export function SettingsPage() {
           }}
         >
           <h3>DHCP + DNS Resolver (dnsmasq)</h3>
+          <label>
+            <input
+              type="checkbox"
+              checked={profile.enable_dnsmasq}
+              onChange={(e) => updateProfile({ enable_dnsmasq: e.target.checked })}
+            />
+            Functionaliteit inschakelen
+          </label>
+          {!profile.enable_dnsmasq ? (
+            <p>dnsmasq is uitgeschakeld. De container wordt gestopt bij apply.</p>
+          ) : null}
 
           <label>
             Domain
@@ -294,6 +305,7 @@ export function SettingsPage() {
           <label>
             Router IP
             <input
+              disabled={!profile.enable_dnsmasq}
               value={profile.router_ip}
               onChange={(e) => updateProfile({ router_ip: e.target.value })}
             />
@@ -302,6 +314,7 @@ export function SettingsPage() {
           <label>
             DHCP start
             <input
+              disabled={!profile.enable_dnsmasq}
               value={profile.dhcp_range_start}
               onChange={(e) =>
                 updateProfile({ dhcp_range_start: e.target.value })
@@ -312,6 +325,7 @@ export function SettingsPage() {
           <label>
             DHCP end
             <input
+              disabled={!profile.enable_dnsmasq}
               value={profile.dhcp_range_end}
               onChange={(e) => updateProfile({ dhcp_range_end: e.target.value })}
             />
@@ -320,6 +334,7 @@ export function SettingsPage() {
           <label>
             DHCP lease
             <input
+              disabled={!profile.enable_dnsmasq}
               value={profile.dhcp_lease}
               onChange={(e) => updateProfile({ dhcp_lease: e.target.value })}
               placeholder="12h"
@@ -329,6 +344,7 @@ export function SettingsPage() {
           <label>
             <input
               type="checkbox"
+              disabled={!profile.enable_dnsmasq}
               checked={profile.dhcp_authoritative}
               onChange={(e) =>
                 updateProfile({ dhcp_authoritative: e.target.checked })
@@ -340,6 +356,7 @@ export function SettingsPage() {
           <label>
             DHCP domain-search (optioneel)
             <input
+              disabled={!profile.enable_dnsmasq}
               value={profile.dhcp_domain_search ?? ""}
               onChange={(e) =>
                 updateProfile({
@@ -353,6 +370,7 @@ export function SettingsPage() {
           <label>
             DHCP option DNS servers (1 per regel)
             <textarea
+              disabled={!profile.enable_dnsmasq}
               rows={3}
               value={dhcpDnsServersText}
               onChange={(e) => setDhcpDnsServersText(e.target.value)}
@@ -362,6 +380,7 @@ export function SettingsPage() {
           <label>
             DHCP option NTP servers (1 per regel)
             <textarea
+              disabled={!profile.enable_dnsmasq}
               rows={3}
               value={dhcpNtpServersText}
               onChange={(e) => setDhcpNtpServersText(e.target.value)}
@@ -373,6 +392,7 @@ export function SettingsPage() {
             <input
               type="number"
               min={10}
+              disabled={!profile.enable_dnsmasq}
               value={profile.dns_cache_size}
               onChange={(e) =>
                 updateProfile({
@@ -385,6 +405,7 @@ export function SettingsPage() {
           <label>
             Upstream DNS servers (1 per regel)
             <textarea
+              disabled={!profile.enable_dnsmasq}
               rows={4}
               value={dnsServersText}
               onChange={(e) => setDnsServersText(e.target.value)}
@@ -400,6 +421,7 @@ export function SettingsPage() {
               <label>
                 MAC
                 <input
+                  disabled={!profile.enable_dnsmasq}
                   value={item.mac}
                   onChange={(e) =>
                     updateReservation(index, { mac: e.target.value })
@@ -410,6 +432,7 @@ export function SettingsPage() {
               <label>
                 IP
                 <input
+                  disabled={!profile.enable_dnsmasq}
                   value={item.ip}
                   onChange={(e) =>
                     updateReservation(index, { ip: e.target.value })
@@ -420,6 +443,7 @@ export function SettingsPage() {
               <label>
                 Hostname
                 <input
+                  disabled={!profile.enable_dnsmasq}
                   value={item.hostname ?? ""}
                   onChange={(e) =>
                     updateReservation(index, { hostname: e.target.value || null })
@@ -430,6 +454,7 @@ export function SettingsPage() {
               <label>
                 Lease
                 <input
+                  disabled={!profile.enable_dnsmasq}
                   value={item.lease ?? ""}
                   onChange={(e) =>
                     updateReservation(index, { lease: e.target.value || null })
@@ -440,21 +465,39 @@ export function SettingsPage() {
               <button
                 type="button"
                 className="btn btn-secondary"
+                disabled={!profile.enable_dnsmasq}
                 onClick={() => removeReservation(index)}
               >
                 Verwijder
               </button>
             </div>
           ))}
-          <button type="button" className="btn btn-secondary" onClick={addReservation}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            disabled={!profile.enable_dnsmasq}
+            onClick={addReservation}
+          >
             Reservering toevoegen
           </button>
 
           <h3>Authoritative DNS (BIND9)</h3>
+          <label>
+            <input
+              type="checkbox"
+              checked={profile.enable_bind9}
+              onChange={(e) => updateProfile({ enable_bind9: e.target.checked })}
+            />
+            Functionaliteit inschakelen
+          </label>
+          {!profile.enable_bind9 ? (
+            <p>bind9 is uitgeschakeld. De container wordt gestopt bij apply.</p>
+          ) : null}
 
           <label>
             Authoritative domeinen (1 per regel)
             <textarea
+              disabled={!profile.enable_bind9}
               rows={4}
               value={authoritativeDomainsText}
               onChange={(e) => setAuthoritativeDomainsText(e.target.value)}
@@ -471,6 +514,7 @@ export function SettingsPage() {
             <input
               type="number"
               min={60}
+              disabled={!profile.enable_bind9}
               value={profile.zone_ttl}
               onChange={(e) =>
                 updateProfile({ zone_ttl: Number.parseInt(e.target.value, 10) || 60 })
@@ -483,6 +527,7 @@ export function SettingsPage() {
             <input
               type="number"
               min={1}
+              disabled={!profile.enable_bind9}
               value={profile.zone_serial ?? 0}
               onChange={(e) =>
                 updateProfile({
@@ -513,6 +558,7 @@ export function SettingsPage() {
               <label>
                 Name
                 <input
+                  disabled={!profile.enable_bind9}
                   value={record.name}
                   onChange={(e) =>
                     updateDnsRecord(index, { name: e.target.value })
@@ -523,6 +569,7 @@ export function SettingsPage() {
               <label>
                 Type
                 <input
+                  disabled={!profile.enable_bind9}
                   list="dns-record-type-options"
                   value={record.type}
                   onChange={(e) =>
@@ -534,6 +581,7 @@ export function SettingsPage() {
               <label>
                 Value
                 <input
+                  disabled={!profile.enable_bind9}
                   value={record.value}
                   onChange={(e) =>
                     updateDnsRecord(index, { value: e.target.value })
@@ -544,13 +592,19 @@ export function SettingsPage() {
               <button
                 type="button"
                 className="btn btn-secondary"
+                disabled={!profile.enable_bind9}
                 onClick={() => removeDnsRecord(index)}
               >
                 Verwijder
               </button>
             </div>
           ))}
-          <button type="button" className="btn btn-secondary" onClick={addDnsRecord}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            disabled={!profile.enable_bind9}
+            onClick={addDnsRecord}
+          >
             DNS record toevoegen
           </button>
 
@@ -558,6 +612,7 @@ export function SettingsPage() {
           <label>
             NS host
             <input
+              disabled={!profile.enable_bind9}
               value={profile.nameserver_host}
               onChange={(e) =>
                 updateProfile({ nameserver_host: e.target.value })
@@ -567,6 +622,7 @@ export function SettingsPage() {
           <label>
             NS IP
             <input
+              disabled={!profile.enable_bind9}
               value={profile.nameserver_ip}
               onChange={(e) => updateProfile({ nameserver_ip: e.target.value })}
             />
@@ -574,6 +630,7 @@ export function SettingsPage() {
           <label>
             API host
             <input
+              disabled={!profile.enable_bind9}
               value={profile.api_host}
               onChange={(e) => updateProfile({ api_host: e.target.value })}
             />
@@ -581,6 +638,7 @@ export function SettingsPage() {
           <label>
             API IP
             <input
+              disabled={!profile.enable_bind9}
               value={profile.api_ip}
               onChange={(e) => updateProfile({ api_ip: e.target.value })}
             />
@@ -588,6 +646,7 @@ export function SettingsPage() {
           <label>
             Dashboard host
             <input
+              disabled={!profile.enable_bind9}
               value={profile.dashboard_host}
               onChange={(e) =>
                 updateProfile({ dashboard_host: e.target.value })
@@ -597,6 +656,7 @@ export function SettingsPage() {
           <label>
             Dashboard IP
             <input
+              disabled={!profile.enable_bind9}
               value={profile.dashboard_ip}
               onChange={(e) => updateProfile({ dashboard_ip: e.target.value })}
             />
@@ -604,8 +664,20 @@ export function SettingsPage() {
 
           <h3>NTP</h3>
           <label>
+            <input
+              type="checkbox"
+              checked={profile.enable_ntp}
+              onChange={(e) => updateProfile({ enable_ntp: e.target.checked })}
+            />
+            Functionaliteit inschakelen
+          </label>
+          {!profile.enable_ntp ? (
+            <p>NTP is uitgeschakeld. De container wordt gestopt bij apply.</p>
+          ) : null}
+          <label>
             NTP servers (1 per regel)
             <textarea
+              disabled={!profile.enable_ntp}
               rows={4}
               value={ntpServersText}
               onChange={(e) => setNtpServersText(e.target.value)}
@@ -615,6 +687,7 @@ export function SettingsPage() {
           <label>
             <input
               type="checkbox"
+              disabled={!profile.enable_ntp}
               checked={profile.ntp_iburst}
               onChange={(e) => updateProfile({ ntp_iburst: e.target.checked })}
             />
@@ -624,6 +697,7 @@ export function SettingsPage() {
           <label>
             <input
               type="checkbox"
+              disabled={!profile.enable_ntp}
               checked={profile.ntp_disable_monitor}
               onChange={(e) =>
                 updateProfile({ ntp_disable_monitor: e.target.checked })
@@ -635,6 +709,7 @@ export function SettingsPage() {
           <label>
             <input
               type="checkbox"
+              disabled={!profile.enable_ntp}
               checked={profile.ntp_local_clock}
               onChange={(e) =>
                 updateProfile({ ntp_local_clock: e.target.checked })
@@ -649,7 +724,7 @@ export function SettingsPage() {
               type="number"
               min={1}
               max={15}
-              disabled={!profile.ntp_local_clock}
+              disabled={!profile.enable_ntp || !profile.ntp_local_clock}
               value={profile.ntp_local_stratum}
               onChange={(e) =>
                 updateProfile({

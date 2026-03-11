@@ -126,6 +126,11 @@ export interface DockerContainerItem {
   labels: Record<string, string>;
   project_name: string | null;
   managed_by_project: boolean;
+  cpu_percent: number | null;
+  memory_usage_bytes: number | null;
+  memory_limit_bytes: number | null;
+  memory_percent: number | null;
+  restart_count: number | null;
 }
 
 export interface DockerContainersResponse {
@@ -169,6 +174,9 @@ export interface DockerImageUpdatesResponse {
 export interface NetworkStackProfile {
   domain: string;
   authoritative_domains: string[];
+  enable_dnsmasq: boolean;
+  enable_bind9: boolean;
+  enable_ntp: boolean;
   router_ip: string;
   dhcp_range_start: string;
   dhcp_range_end: string;

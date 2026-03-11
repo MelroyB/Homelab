@@ -21,6 +21,9 @@ class DnsRecord(BaseModel):
 class NetworkStackProfile(BaseModel):
     domain: str = "homelab.local"
     authoritative_domains: list[str] = Field(default_factory=lambda: ["homelab.local"])
+    enable_dnsmasq: bool = True
+    enable_bind9: bool = True
+    enable_ntp: bool = True
     router_ip: str = "192.168.50.1"
     dhcp_range_start: str = "192.168.50.100"
     dhcp_range_end: str = "192.168.50.200"

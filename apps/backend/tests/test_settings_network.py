@@ -22,6 +22,9 @@ def test_network_profile_has_dhcp_and_ntp_fields(client):
     assert response.status_code == 200
     data = response.json()
     assert "authoritative_domains" in data
+    assert "enable_dnsmasq" in data
+    assert "enable_bind9" in data
+    assert "enable_ntp" in data
     assert "dhcp_authoritative" in data
     assert "dhcp_reservations" in data
     assert "dhcp_dns_servers" in data

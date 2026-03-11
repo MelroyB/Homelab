@@ -34,6 +34,11 @@ class DockerContainerItem(BaseModel):
     labels: dict[str, str] = Field(default_factory=dict)
     project_name: str | None = None
     managed_by_project: bool
+    cpu_percent: float | None = None
+    memory_usage_bytes: int | None = None
+    memory_limit_bytes: int | None = None
+    memory_percent: float | None = None
+    restart_count: int | None = None
 
 
 class DockerContainersResponse(BaseModel):

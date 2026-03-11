@@ -31,6 +31,14 @@ make restart
 3. Confirm health/state
 4. Roll back using previous version when needed
 
+## Unified network stack toggles
+
+- Settings page includes `enable_dnsmasq`, `enable_bind9`, and `enable_ntp`.
+- Apply behavior:
+  - disabled service: container is stopped (if running)
+  - enabled service: container is started (if stopped) before apply/reload
+- Use this to keep optional homelab services inactive until explicitly needed.
+
 ## Health monitoring
 
 - Liveness: `/health/live`

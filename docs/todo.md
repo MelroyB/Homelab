@@ -14,6 +14,7 @@
 - [x] Add guided Caddy configuration form in Service Detail UI
 - [x] Add Let's Encrypt TLS settings in Caddy guided form (domains/email/staging)
 - [x] Add unified Network Stack flow (DNS + DHCP + NTP) in Settings
+- [x] Add per-service network stack enable toggles with container lifecycle control (stop when disabled, start on re-enable/apply)
 - [x] Add DHCP leases visibility in Settings
 - [x] Add DHCP scope options and reservation management in Settings
 - [x] Add manual DNS records management in Settings (`name`, `type`, `value`)

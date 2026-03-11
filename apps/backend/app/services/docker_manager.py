@@ -60,14 +60,18 @@ class DockerManagerService:
             attrs = container.attrs or {}
             config = attrs.get("Config", {})
             labels = config.get("Labels") or {}
-            project_label = labels.get("com.docker.compose.project")
-            managed_by_project = project_label == self.project_name
+            project_label = str(labels.get("com.docker.compose.project") or "").strip() or None
+            managed_by_project = self._is_project_container(
+                project_label=project_label,
+                container_name=container.name,
+            )
             if scope == "project" and not managed_by_project:
                 continue
 
             state_info = attrs.get("State", {})
             created_at = self._parse_datetime(attrs.get("Created"))
             ports = self._parse_ports((attrs.get("NetworkSettings") or {}).get("Ports") or {})
+            perf = self._container_perf(container, state_info=state_info)
 
             result.append(
                 DockerContainerItem(
@@ -80,8 +84,14 @@ class DockerManagerService:
                     created_at=created_at,
                     ports=ports,
                     labels={str(k): str(v) for k, v in labels.items()},
-                    project_name=project_label,
+                    project_name=project_label
+                    or (self.project_name if managed_by_project else None),
                     managed_by_project=managed_by_project,
+                    cpu_percent=perf["cpu_percent"],
+                    memory_usage_bytes=perf["memory_usage_bytes"],
+                    memory_limit_bytes=perf["memory_limit_bytes"],
+                    memory_percent=perf["memory_percent"],
+                    restart_count=perf["restart_count"],
                 )
             )
 
@@ -162,11 +172,13 @@ class DockerManagerService:
         if client is None:
             return []
 
+        containers = self.list_containers(scope=scope)
         images = self.list_images(scope=scope)
-        refs: list[str] = []
+        refs: list[str] = [container.image for container in containers if container.image]
         for image in images:
             if image.repo_tags:
                 refs.append(image.repo_tags[0])
+        refs = self._ordered_unique(refs)
 
         results: list[DockerImageUpdateStatus] = []
         for ref in refs:
@@ -291,3 +303,96 @@ class DockerManagerService:
                 host_port = binding.get("HostPort", "")
                 ports.append(f"{host_ip}:{host_port}->{internal}")
         return ports
+
+    def _container_perf(self, container: Any, *, state_info: dict[str, Any]) -> dict[str, Any]:
+        restart_count = state_info.get("RestartCount")
+        status = str(state_info.get("Status") or "").lower()
+        if status != "running":
+            return {
+                "cpu_percent": None,
+                "memory_usage_bytes": None,
+                "memory_limit_bytes": None,
+                "memory_percent": None,
+                "restart_count": int(restart_count) if isinstance(restart_count, int) else None,
+            }
+
+        try:
+            stats = container.stats(stream=False) or {}
+        except DockerException:
+            return {
+                "cpu_percent": None,
+                "memory_usage_bytes": None,
+                "memory_limit_bytes": None,
+                "memory_percent": None,
+                "restart_count": int(restart_count) if isinstance(restart_count, int) else None,
+            }
+
+        cpu_percent = self._cpu_percent_from_stats(stats)
+        memory_stats = stats.get("memory_stats") or {}
+        memory_usage = memory_stats.get("usage")
+        memory_limit = memory_stats.get("limit")
+        memory_percent = None
+        if isinstance(memory_usage, (int, float)) and isinstance(memory_limit, (int, float)):
+            if memory_limit > 0:
+                memory_percent = (float(memory_usage) / float(memory_limit)) * 100.0
+
+        return {
+            "cpu_percent": cpu_percent,
+            "memory_usage_bytes": int(memory_usage)
+            if isinstance(memory_usage, (int, float))
+            else None,
+            "memory_limit_bytes": int(memory_limit)
+            if isinstance(memory_limit, (int, float))
+            else None,
+            "memory_percent": memory_percent,
+            "restart_count": int(restart_count) if isinstance(restart_count, int) else None,
+        }
+
+    @staticmethod
+    def _cpu_percent_from_stats(stats: dict[str, Any]) -> float | None:
+        cpu_stats = stats.get("cpu_stats") or {}
+        precpu_stats = stats.get("precpu_stats") or {}
+        cpu_usage = cpu_stats.get("cpu_usage") or {}
+        precpu_usage = precpu_stats.get("cpu_usage") or {}
+
+        total = cpu_usage.get("total_usage")
+        pre_total = precpu_usage.get("total_usage")
+        system = cpu_stats.get("system_cpu_usage")
+        pre_system = precpu_stats.get("system_cpu_usage")
+        if not isinstance(total, (int, float)) or not isinstance(pre_total, (int, float)):
+            return None
+        if not isinstance(system, (int, float)) or not isinstance(pre_system, (int, float)):
+            return None
+
+        cpu_delta = float(total) - float(pre_total)
+        system_delta = float(system) - float(pre_system)
+        if cpu_delta <= 0 or system_delta <= 0:
+            return 0.0
+
+        online_cpus = cpu_stats.get("online_cpus")
+        if not isinstance(online_cpus, int) or online_cpus <= 0:
+            percpu_usage = cpu_usage.get("percpu_usage")
+            if isinstance(percpu_usage, list) and percpu_usage:
+                online_cpus = len(percpu_usage)
+            else:
+                online_cpus = 1
+
+        return (cpu_delta / system_delta) * float(online_cpus) * 100.0
+
+    def _is_project_container(self, *, project_label: str | None, container_name: str) -> bool:
+        if project_label == self.project_name:
+            return True
+        name = container_name.strip()
+        return name.startswith(f"{self.project_name}-") or name.startswith(f"{self.project_name}_")
+
+    @staticmethod
+    def _ordered_unique(values: list[str]) -> list[str]:
+        seen: set[str] = set()
+        result: list[str] = []
+        for value in values:
+            normalized = value.strip()
+            if not normalized or normalized in seen:
+                continue
+            seen.add(normalized)
+            result.append(normalized)
+        return result

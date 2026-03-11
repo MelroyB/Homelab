@@ -74,6 +74,7 @@ FastAPI exposes OpenAPI docs at:
 - dnsmasq upstream resolver settings
 - BIND9 zone defaults, manual DNS records (`dns_records`), and authoritative domains (`authoritative_domains`)
 - NTP upstream/local-fallback settings
+- service lifecycle toggles for DNS/DHCP/NTP (`enable_dnsmasq`, `enable_bind9`, `enable_ntp`)
 
 `NetworkStackProfile` includes `authoritative_domains: string[]`:
 - each value is a normalized fqdn zone name (`example.com`, `homelab.local`)
@@ -91,6 +92,17 @@ When `dns_records` is empty at apply time, backend fallback keeps creating basel
 - `dashboard_host` / `dashboard_ip`
 
 During apply, backend also writes `named.conf` with one `zone` block per `authoritative_domains` entry.
+
+`NetworkStackProfile` includes:
+- `enable_dnsmasq: boolean`
+- `enable_bind9: boolean`
+- `enable_ntp: boolean`
+
+Apply behavior for each enabled flag:
+- `false`: marks the managed service as disabled and stops the container when running
+- `true`: marks service as enabled and attempts container start (if stopped) before config apply/reload
+
+`NetworkServiceApplyResult.status` can include `applied`, `disabled`, `stopped`, or `failed`.
 
 ## Error conventions
 
