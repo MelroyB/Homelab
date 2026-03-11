@@ -5,12 +5,29 @@ import {
   getNetworkStackProfile
 } from "../api/settings";
 import {
+  DnsRecord,
   DhcpLeaseEntry,
   DhcpReservation,
   NetworkServiceApplyResult,
   NetworkStackProfile
 } from "../types/api";
 import { StatusBadge } from "../components/StatusBadge";
+
+const DNS_RECORD_TYPES = [
+  "A",
+  "AAAA",
+  "CNAME",
+  "TXT",
+  "MX",
+  "NS",
+  "SRV",
+  "PTR",
+  "CAA",
+  "NAPTR",
+  "SPF",
+  "TLSA",
+  "LOC"
+] as const;
 
 function splitLines(value: string): string[] {
   return value
@@ -77,6 +94,31 @@ export function SettingsPage() {
     });
   };
 
+  const updateDnsRecord = (index: number, patch: Partial<DnsRecord>) => {
+    updateProfile({
+      dns_records: (profile?.dns_records ?? []).map((item, itemIndex) =>
+        itemIndex === index ? { ...item, ...patch } : item
+      )
+    });
+  };
+
+  const addDnsRecord = () => {
+    updateProfile({
+      dns_records: [
+        ...(profile?.dns_records ?? []),
+        { name: "", type: "A", value: "" }
+      ]
+    });
+  };
+
+  const removeDnsRecord = (index: number) => {
+    updateProfile({
+      dns_records: (profile?.dns_records ?? []).filter(
+        (_item, itemIndex) => itemIndex !== index
+      )
+    });
+  };
+
   const addReservation = () => {
     updateProfile({
       dhcp_reservations: [
@@ -117,6 +159,27 @@ export function SettingsPage() {
     const dhcpDnsServers = splitLines(dhcpDnsServersText);
     const dhcpNtpServers = splitLines(dhcpNtpServersText);
     const ntpServers = splitLines(ntpServersText);
+    const sourceRecords = profile.dns_records ?? [];
+    const hasIncompleteRecord = sourceRecords.some((record) => {
+      const hasAny =
+        record.name.trim() || record.type.trim() || record.value.trim();
+      const hasAll =
+        record.name.trim() && record.type.trim() && record.value.trim();
+      return Boolean(hasAny && !hasAll);
+    });
+    if (hasIncompleteRecord) {
+      setError(
+        "Vul elke DNS record volledig in (name, type, value) of maak de regel leeg."
+      );
+      return;
+    }
+    const dnsRecords = sourceRecords
+      .map((record) => ({
+        name: record.name.trim(),
+        type: record.type.trim().toUpperCase(),
+        value: record.value.trim()
+      }))
+      .filter((record) => record.name && record.type && record.value);
 
     if (dnsServers.length === 0) {
       setError("Voeg minimaal 1 DNS upstream server toe.");
@@ -154,6 +217,7 @@ export function SettingsPage() {
         dhcp_dns_servers: dhcpDnsServers,
         dhcp_ntp_servers: dhcpNtpServers,
         ntp_servers: ntpServers,
+        dns_records: dnsRecords,
         dhcp_reservations: reservations
       });
       setResults(response.results);
@@ -396,7 +460,69 @@ export function SettingsPage() {
             />
           </label>
 
-          <h3>Core host records</h3>
+          <h3>DNS records (handmatig)</h3>
+          <p>
+            Voeg hier alle gewenste record types toe, zoals A, AAAA, CNAME, TXT,
+            MX, NS, SRV, PTR, CAA, NAPTR.
+          </p>
+          <datalist id="dns-record-type-options">
+            {DNS_RECORD_TYPES.map((recordType) => (
+              <option key={recordType} value={recordType} />
+            ))}
+          </datalist>
+          {(profile.dns_records ?? []).length === 0 ? (
+            <p>Nog geen DNS records ingesteld.</p>
+          ) : null}
+          {(profile.dns_records ?? []).map((record, index) => (
+            <div
+              key={`${index}-${record.name}-${record.type}-${record.value}`}
+              className="inline-form"
+            >
+              <label>
+                Name
+                <input
+                  value={record.name}
+                  onChange={(e) =>
+                    updateDnsRecord(index, { name: e.target.value })
+                  }
+                  placeholder="api of @"
+                />
+              </label>
+              <label>
+                Type
+                <input
+                  list="dns-record-type-options"
+                  value={record.type}
+                  onChange={(e) =>
+                    updateDnsRecord(index, { type: e.target.value.toUpperCase() })
+                  }
+                  placeholder="A"
+                />
+              </label>
+              <label>
+                Value
+                <input
+                  value={record.value}
+                  onChange={(e) =>
+                    updateDnsRecord(index, { value: e.target.value })
+                  }
+                  placeholder="192.168.50.10 of target.example."
+                />
+              </label>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => removeDnsRecord(index)}
+              >
+                Verwijder
+              </button>
+            </div>
+          ))}
+          <button type="button" className="btn btn-secondary" onClick={addDnsRecord}>
+            DNS record toevoegen
+          </button>
+
+          <h3>Zone defaults</h3>
           <label>
             NS host
             <input

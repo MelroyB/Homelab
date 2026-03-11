@@ -23,6 +23,7 @@ from app.schemas.settings import (
     DhcpLeaseEntry,
     DhcpLeasesResponse,
     DhcpReservation,
+    DnsRecord,
     NetworkServiceApplyResult,
     NetworkStackApplyResponse,
     NetworkStackProfile,
@@ -102,6 +103,30 @@ def _reservation_list(value: object) -> list[DhcpReservation]:
             )
         )
     return reservations
+
+
+def _dns_record_list(
+    value: object, fallback: list[dict[str, str]] | None = None
+) -> list[DnsRecord]:
+    if not isinstance(value, list):
+        value = fallback or []
+
+    records: list[DnsRecord] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name", "")).strip()
+        record_type = str(item.get("type", "")).strip().upper()
+        record_value = str(item.get("value", "")).strip()
+        if not name or not record_type or not record_value:
+            continue
+        records.append(DnsRecord(name=name, type=record_type, value=record_value))
+
+    if records:
+        return records
+    if fallback:
+        return _dns_record_list(fallback, fallback=None)
+    return []
 
 
 def _to_fqdn(host: str, domain: str) -> str:
@@ -205,6 +230,24 @@ def network_profile(
     nameserver_record = records_by_name.get(nameserver_host, {})
     api_record = records_by_name.get(api_host, {})
     dashboard_record = records_by_name.get(dashboard_host, {})
+    default_dns_records = [
+        {
+            "name": nameserver_host,
+            "type": "A",
+            "value": str(nameserver_record.get("value", "192.168.50.2")),
+        },
+        {
+            "name": api_host,
+            "type": "A",
+            "value": str(api_record.get("value", "192.168.50.10")),
+        },
+        {
+            "name": dashboard_host,
+            "type": "A",
+            "value": str(dashboard_record.get("value", "192.168.50.10")),
+        },
+    ]
+    dns_records = _dns_record_list(bind9_cfg.get("records"), fallback=default_dns_records)
 
     dns_servers = dnsmasq_cfg.get("upstream_servers", ["1.1.1.1", "1.0.0.1"])
     ntp_servers = ntp_cfg.get("servers", ["time.cloudflare.com", "time.google.com"])
@@ -230,6 +273,7 @@ def network_profile(
         api_ip=str(api_record.get("value", "192.168.50.10")),
         dashboard_host=dashboard_host,
         dashboard_ip=str(dashboard_record.get("value", "192.168.50.10")),
+        dns_records=dns_records,
         ntp_servers=_string_list(ntp_servers, ["time.cloudflare.com", "time.google.com"]),
         ntp_iburst=bool(ntp_cfg.get("iburst", True)),
         ntp_disable_monitor=bool(ntp_cfg.get("disable_monitor", True)),
@@ -255,17 +299,27 @@ def apply_network_profile(
 
     bind_records = [
         {
-            "name": payload.nameserver_host.strip(),
-            "type": "A",
-            "value": payload.nameserver_ip.strip(),
-        },
-        {"name": payload.api_host.strip(), "type": "A", "value": payload.api_ip.strip()},
-        {
-            "name": payload.dashboard_host.strip(),
-            "type": "A",
-            "value": payload.dashboard_ip.strip(),
-        },
+            "name": item.name.strip(),
+            "type": item.type.strip().upper(),
+            "value": item.value.strip(),
+        }
+        for item in payload.dns_records
+        if item.name.strip() and item.type.strip() and item.value.strip()
     ]
+    if not bind_records:
+        bind_records = [
+            {
+                "name": payload.nameserver_host.strip(),
+                "type": "A",
+                "value": payload.nameserver_ip.strip(),
+            },
+            {"name": payload.api_host.strip(), "type": "A", "value": payload.api_ip.strip()},
+            {
+                "name": payload.dashboard_host.strip(),
+                "type": "A",
+                "value": payload.dashboard_ip.strip(),
+            },
+        ]
     bind_records = [
         record for record in bind_records if record["name"] and record["type"] and record["value"]
     ]

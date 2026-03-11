@@ -72,8 +72,18 @@ FastAPI exposes OpenAPI docs at:
 `/settings/network/*` is intended as the unified management surface for:
 - dnsmasq DHCP scope/options/reservations
 - dnsmasq upstream resolver settings
-- BIND9 zone baseline records
+- BIND9 zone defaults and manual DNS records (`dns_records`)
 - NTP upstream/local-fallback settings
+
+`NetworkStackProfile` now includes `dns_records: DnsRecord[]`:
+- `name`: record name (`@`, `api`, `dashboard`, etc.)
+- `type`: record type (`A`, `AAAA`, `CNAME`, `TXT`, `MX`, `NS`, `SRV`, `PTR`, `CAA`, `NAPTR`, `SPF`, `TLSA`, `LOC`, ...)
+- `value`: record value (IP, hostname, text, target, ...)
+
+When `dns_records` is empty at apply time, backend fallback keeps creating baseline `A` records from:
+- `nameserver_host` / `nameserver_ip`
+- `api_host` / `api_ip`
+- `dashboard_host` / `dashboard_ip`
 
 ## Error conventions
 

@@ -29,6 +29,7 @@
 - [x] Guided Caddy form in Service Detail UI
 - [x] Unified Network Stack profile apply for DNS + DHCP + NTP
 - [x] DHCP leases view and DHCP reservations management in Settings UI
+- [x] Manual DNS records management in Settings UI (`A`, `AAAA`, `CNAME`, `TXT`, `MX`, `NS`, `SRV`, `PTR`, `CAA`, `NAPTR`, `SPF`, `TLSA`, `LOC`, ...)
 - [ ] syntax validation by native binaries (`dnsmasq --test`, `named-checkzone`)
 - [ ] safer apply with staged dry-run checks
 
@@ -65,19 +66,21 @@
 - Guided service config forms shipped for Caddy, dnsmasq, BIND9, and NTP.
 - Unified Settings-based Network Stack flow shipped (DNS + DHCP + NTP together).
 - DHCP scope options, reservations, and live lease visibility shipped.
+- Manual DNS record management shipped in Settings (with common record type presets).
 
 ## Backlog (prioritized)
 
 1. Define migration review/rollback policy and DB backup gate before destructive migrations
 2. Add per-service native config lint commands before apply
-3. Add optimistic locking for concurrent config edits
-4. Add diff viewer for config versions
-5. Add dependency-aware service restart ordering
-6. Add scheduled backups and retention policy
-7. Add backup encryption and offsite replication
-8. Add WebSocket live status/streamed logs
-9. Add OIDC auth provider integration
-10. Add plugin discovery and adapter loading
+3. Add record-type specific DNS validation/hints (for example MX priority, SRV shape, IP/FQDN validation)
+4. Add optimistic locking for concurrent config edits
+5. Add diff viewer for config versions
+6. Add dependency-aware service restart ordering
+7. Add scheduled backups and retention policy
+8. Add backup encryption and offsite replication
+9. Add WebSocket live status/streamed logs
+10. Add OIDC auth provider integration
+11. Add plugin discovery and adapter loading
 
 ## Risks and mitigations
 

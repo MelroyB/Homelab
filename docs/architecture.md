@@ -31,8 +31,10 @@ This project is a single-node control plane for homelab infra services with a mi
 - `Settings` provides one combined profile for DNS + DHCP + NTP.
 - Backend fans this profile out into coordinated service applies for:
   - `dnsmasq` (scope/options/reservations/upstream resolvers)
-  - `bind9` (authoritative zone baseline records)
+  - `bind9` (authoritative zone defaults + manual DNS records)
   - `ntp` (upstream + local fallback config)
+- DNS records are managed as structured entries (`name`, `type`, `value`) and mapped to BIND `records`.
+- Common record types are exposed in the UI (`A`, `AAAA`, `CNAME`, `TXT`, `MX`, `NS`, `SRV`, `PTR`, `CAA`, `NAPTR`, `SPF`, `TLSA`, `LOC`), while backend accepts other valid types as free text.
 - DHCP lease visibility is read from `dnsmasq.leases` under `data_dir/state/dnsmasq/`.
 - Every combined apply is audited as a single `network_stack_apply` action with per-service results.
 

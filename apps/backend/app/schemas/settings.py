@@ -12,6 +12,12 @@ class DhcpReservation(BaseModel):
     lease: str | None = None
 
 
+class DnsRecord(BaseModel):
+    name: str
+    type: str
+    value: str
+
+
 class NetworkStackProfile(BaseModel):
     domain: str = "homelab.local"
     router_ip: str = "192.168.50.1"
@@ -33,6 +39,7 @@ class NetworkStackProfile(BaseModel):
     api_ip: str = "192.168.50.10"
     dashboard_host: str = "dashboard"
     dashboard_ip: str = "192.168.50.10"
+    dns_records: list[DnsRecord] = Field(default_factory=list)
     ntp_servers: list[str] = Field(
         default_factory=lambda: ["time.cloudflare.com", "time.google.com"]
     )

@@ -187,11 +187,18 @@ export interface NetworkStackProfile {
   api_ip: string;
   dashboard_host: string;
   dashboard_ip: string;
+  dns_records: DnsRecord[];
   ntp_servers: string[];
   ntp_iburst: boolean;
   ntp_disable_monitor: boolean;
   ntp_local_clock: boolean;
   ntp_local_stratum: number;
+}
+
+export interface DnsRecord {
+  name: string;
+  type: string;
+  value: string;
 }
 
 export interface DhcpReservation {

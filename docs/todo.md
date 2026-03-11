@@ -15,6 +15,8 @@
 - [x] Add unified Network Stack flow (DNS + DHCP + NTP) in Settings
 - [x] Add DHCP leases visibility in Settings
 - [x] Add DHCP scope options and reservation management in Settings
+- [x] Add manual DNS records management in Settings (`name`, `type`, `value`)
+- [ ] Add DNS record-type specific validation/hints (A/AAAA IP validation, MX priority, SRV structure)
 - [ ] Add API pagination and filtering for audit and logs
 - [ ] Add config diff endpoint and frontend visual diff
 - [ ] Add scheduled and retained backups
