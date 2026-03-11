@@ -37,7 +37,16 @@ export default function App() {
   return (
     <Routes>
       <Route path="/onboarding" element={<OnboardingPage />} />
-      <Route path="/login" element={bootstrapRequired ? <Navigate to="/onboarding" replace /> : <LoginPage />} />
+      <Route
+        path="/login"
+        element={
+          bootstrapRequired ? (
+            <Navigate to="/onboarding" replace />
+          ) : (
+            <LoginPage />
+          )
+        }
+      />
 
       <Route path="/" element={<ProtectedRoutes />}>
         <Route index element={<DashboardPage />} />

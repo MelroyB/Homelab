@@ -1,8 +1,6 @@
 services:
   backend:
-    build: null
-    image: ${BACKEND_IMAGE:-ghcr.io/owner/repo-backend:latest}
+    image: ${BACKEND_IMAGE:-melroy/homelab-control-backend:latest}
 
   frontend:
-    build: null
-    image: ${FRONTEND_IMAGE:-ghcr.io/owner/repo-frontend:latest}
+    image: ${FRONTEND_IMAGE:-melroy/homelab-control-frontend:latest}

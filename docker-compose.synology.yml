@@ -1,0 +1,10 @@
+services:
+  # Keep infra network services opt-in on Synology to avoid host port conflicts.
+  dnsmasq:
+    profiles: ["infra"]
+
+  bind9:
+    profiles: ["infra"]
+
+  ntp:
+    profiles: ["infra"]

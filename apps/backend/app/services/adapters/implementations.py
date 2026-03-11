@@ -72,9 +72,32 @@ class Bind9Validator(ConfigValidator):
 
 class NtpValidator(ConfigValidator):
     def validate(self, service: ManagedService, rendered_config: str) -> tuple[bool, list[str]]:
-        if "server" not in rendered_config:
-            return False, ["NTP config should include at least one server line"]
-        return True, []
+        errors: list[str] = []
+        server_lines = [
+            line.strip() for line in rendered_config.splitlines() if line.strip().startswith("server ")
+        ]
+        if not server_lines:
+            errors.append("NTP config should include at least one server line")
+
+        for line in server_lines:
+            parts = line.split()
+            if len(parts) < 2 or not parts[1].strip():
+                errors.append("Invalid NTP server line detected")
+                break
+
+        for line in rendered_config.splitlines():
+            stripped = line.strip()
+            if not stripped.startswith("fudge 127.127.1.0 stratum "):
+                continue
+            try:
+                stratum = int(stripped.rsplit(" ", 1)[-1])
+            except ValueError:
+                errors.append("local_stratum must be an integer between 1 and 15")
+                continue
+            if stratum < 1 or stratum > 15:
+                errors.append("local_stratum must be between 1 and 15")
+
+        return (len(errors) == 0, errors)
 
 
 class DockerServiceController(ServiceController):

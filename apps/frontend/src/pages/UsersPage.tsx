@@ -9,7 +9,9 @@ export function UsersPage() {
   useEffect(() => {
     listUsers()
       .then(setUsers)
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load users"));
+      .catch((err) =>
+        setError(err instanceof Error ? err.message : "Failed to load users")
+      );
   }, []);
 
   return (

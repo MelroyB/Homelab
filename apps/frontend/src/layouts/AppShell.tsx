@@ -30,7 +30,12 @@ export function AppShell() {
         </div>
         <nav>
           {links.map((link) => (
-            <NavLink key={link.to} to={link.to} end={link.to === "/"} className="nav-link">
+            <NavLink
+              key={link.to}
+              to={link.to}
+              end={link.to === "/"}
+              className="nav-link"
+            >
               {link.label}
             </NavLink>
           ))}

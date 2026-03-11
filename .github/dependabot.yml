@@ -4,22 +4,80 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 10
+      day: "monday"
+      time: "05:00"
+      timezone: "Europe/Amsterdam"
+    open-pull-requests-limit: 2
+    rebase-strategy: "disabled"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
 
   - package-ecosystem: "pip"
     directory: "/apps/backend"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 10
+      day: "monday"
+      time: "05:00"
+      timezone: "Europe/Amsterdam"
+    open-pull-requests-limit: 2
+    rebase-strategy: "disabled"
+    groups:
+      backend-python:
+        patterns:
+          - "*"
 
   - package-ecosystem: "npm"
     directory: "/apps/frontend"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 10
+      day: "monday"
+      time: "05:00"
+      timezone: "Europe/Amsterdam"
+    open-pull-requests-limit: 3
+    rebase-strategy: "disabled"
+    ignore:
+      - dependency-name: "eslint"
+        update-types:
+          - "version-update:semver-major"
+      - dependency-name: "@eslint/js"
+        update-types:
+          - "version-update:semver-major"
+    groups:
+      frontend-production:
+        dependency-type: "production"
+        patterns:
+          - "*"
+      frontend-development:
+        dependency-type: "development"
+        patterns:
+          - "*"
 
   - package-ecosystem: "docker"
-    directory: "/"
+    directory: "/apps/backend"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 10
+      day: "monday"
+      time: "05:00"
+      timezone: "Europe/Amsterdam"
+    open-pull-requests-limit: 1
+    rebase-strategy: "disabled"
+    groups:
+      backend-docker:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "docker"
+    directory: "/apps/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "05:00"
+      timezone: "Europe/Amsterdam"
+    open-pull-requests-limit: 1
+    rebase-strategy: "disabled"
+    groups:
+      frontend-docker:
+        patterns:
+          - "*"

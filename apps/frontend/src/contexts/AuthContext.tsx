@@ -1,5 +1,10 @@
 import { createContext, useEffect, useMemo, useState } from "react";
-import { getBootstrapStatus, getMe, login as loginApi, logout as logoutApi } from "../api/auth";
+import {
+  getBootstrapStatus,
+  getMe,
+  login as loginApi,
+  logout as logoutApi
+} from "../api/auth";
 import { User } from "../types/api";
 
 interface AuthContextValue {

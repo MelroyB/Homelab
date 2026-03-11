@@ -68,7 +68,11 @@ export async function apiRequest<T>(
 
   if (!response.ok) {
     const details = await parseJsonOrNull(response);
-    throw new ApiError(`Request failed (${response.status})`, response.status, details);
+    throw new ApiError(
+      `Request failed (${response.status})`,
+      response.status,
+      details
+    );
   }
 
   return (await parseJsonOrNull(response)) as T;

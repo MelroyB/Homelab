@@ -53,6 +53,8 @@ class ConfigVersionResponse(BaseModel):
     id: str
     service_slug: str
     version: int
+    config_json: dict[str, Any] = Field(default_factory=dict)
+    raw_config: str = ""
     validation_status: str
     apply_status: str
     is_active: bool
