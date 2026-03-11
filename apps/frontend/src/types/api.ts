@@ -212,6 +212,35 @@ export interface NetworkStackProfile {
   ntp_local_stratum: number;
 }
 
+export interface MailboxEntry {
+  email: string;
+  password: string | null;
+  has_password: boolean;
+  display_name: string | null;
+  quota_mb: number;
+  enabled: boolean;
+  aliases: string[];
+}
+
+export interface MailStackProfile {
+  domain: string;
+  hostname: string;
+  postmaster_address: string;
+  enable_mailserver: boolean;
+  enable_webmail: boolean;
+  enable_imap: boolean;
+  enable_pop3: boolean;
+  enable_submission: boolean;
+  enable_submissions: boolean;
+  enable_smtps: boolean;
+  dkim_selector: string;
+  dkim_key_size: number;
+  dkim_public_key: string | null;
+  spf_policy: string;
+  dmarc_policy: string;
+  mailboxes: MailboxEntry[];
+}
+
 export interface DnsRecord {
   name: string;
   type: string;
@@ -249,4 +278,10 @@ export interface NetworkServiceApplyResult {
 export interface NetworkStackApplyResponse {
   success: boolean;
   results: NetworkServiceApplyResult[];
+}
+
+export interface MailStackApplyResponse {
+  success: boolean;
+  results: NetworkServiceApplyResult[];
+  suggested_dns_records: DnsRecord[];
 }

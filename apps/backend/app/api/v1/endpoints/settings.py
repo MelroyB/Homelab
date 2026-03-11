@@ -25,6 +25,9 @@ from app.schemas.settings import (
     DhcpLeasesResponse,
     DhcpReservation,
     DnsRecord,
+    MailboxEntry,
+    MailStackApplyResponse,
+    MailStackProfile,
     NetworkServiceApplyResult,
     NetworkStackApplyResponse,
     NetworkStackProfile,
@@ -189,6 +192,116 @@ def _reservation_list(value: object) -> list[DhcpReservation]:
     return reservations
 
 
+def _mailbox_aliases(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    aliases: list[str] = []
+    seen: set[str] = set()
+    for item in value:
+        alias = str(item).strip().lower()
+        if not alias or alias in seen:
+            continue
+        seen.add(alias)
+        aliases.append(alias)
+    return aliases
+
+
+def _mailbox_list(value: object) -> list[MailboxEntry]:
+    if not isinstance(value, list):
+        return []
+
+    mailboxes: list[MailboxEntry] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        email = str(item.get("email", "")).strip().lower()
+        if not email:
+            continue
+        password_raw = str(item.get("password", "")).strip()
+        display_name_raw = str(item.get("display_name", "")).strip()
+        quota_raw = item.get("quota_mb", 1024)
+        try:
+            quota_mb = int(quota_raw)
+        except (TypeError, ValueError):
+            quota_mb = 1024
+        if quota_mb < 10:
+            quota_mb = 10
+        mailboxes.append(
+            MailboxEntry(
+                email=email,
+                password=password_raw or None,
+                has_password=bool(password_raw),
+                display_name=display_name_raw or None,
+                quota_mb=quota_mb,
+                enabled=bool(item.get("enabled", True)),
+                aliases=_mailbox_aliases(item.get("aliases")),
+            )
+        )
+    return mailboxes
+
+
+def _mailbox_list_for_profile(value: object) -> list[MailboxEntry]:
+    items = _mailbox_list(value)
+    return [
+        item.model_copy(update={"password": None, "has_password": item.has_password})
+        for item in items
+    ]
+
+
+def _normalize_mailboxes_for_storage(
+    requested: list[MailboxEntry], existing_items: list[MailboxEntry]
+) -> list[dict]:
+    existing_by_email = {item.email.lower(): item for item in existing_items}
+    normalized: list[dict] = []
+    for item in requested:
+        email = item.email.strip().lower()
+        if not email:
+            continue
+        password = (item.password or "").strip()
+        if not password:
+            existing = existing_by_email.get(email)
+            password = existing.password if existing and existing.password else ""
+
+        aliases = []
+        seen: set[str] = set()
+        for alias in item.aliases:
+            normalized_alias = alias.strip().lower()
+            if not normalized_alias or normalized_alias == email or normalized_alias in seen:
+                continue
+            seen.add(normalized_alias)
+            aliases.append(normalized_alias)
+
+        normalized.append(
+            {
+                "email": email,
+                "password": password or None,
+                "display_name": item.display_name.strip() if item.display_name else None,
+                "quota_mb": max(10, int(item.quota_mb)),
+                "enabled": bool(item.enabled),
+                "aliases": aliases,
+            }
+        )
+    return normalized
+
+
+def _suggest_mail_dns_records(payload: MailStackProfile) -> list[DnsRecord]:
+    domain = _normalize_domain(payload.domain) or "example.com"
+    hostname = payload.hostname.strip().lower() or "mail"
+    dkim_selector = payload.dkim_selector.strip().lower() or "mail"
+    dkim_public_key = (payload.dkim_public_key or "").strip()
+    dkim_value = (
+        f"v=DKIM1; k=rsa; p={dkim_public_key}"
+        if dkim_public_key
+        else "v=DKIM1; k=rsa; p=PASTE_DKIM_PUBLIC_KEY_HERE"
+    )
+    return [
+        DnsRecord(name="@", type="MX", value=f"10 {hostname}.{domain}."),
+        DnsRecord(name="@", type="TXT", value=payload.spf_policy.strip()),
+        DnsRecord(name="_dmarc", type="TXT", value=payload.dmarc_policy.strip()),
+        DnsRecord(name=f"{dkim_selector}._domainkey", type="TXT", value=dkim_value),
+    ]
+
+
 def _dns_record_list(
     value: object, fallback: list[dict[str, str]] | None = None
 ) -> list[DnsRecord]:
@@ -286,6 +399,205 @@ def dhcp_leases(
             items.append(parsed)
 
     return DhcpLeasesResponse(items=items)
+
+
+@router.get("/mail/profile", response_model=MailStackProfile)
+def mail_profile(
+    db: Session = Depends(get_db),
+    _admin_user: User = Depends(require_admin),
+) -> MailStackProfile:
+    mail_cfg = _active_config_json(db, "mailserver")
+    enable_flags = _service_enabled_map(db, ["mailserver", "webmail"])
+
+    domain = _normalize_domain(str(mail_cfg.get("domain", "example.com"))) or "example.com"
+    postmaster_address = (
+        str(mail_cfg.get("postmaster_address", f"postmaster@{domain}")).strip()
+        or f"postmaster@{domain}"
+    )
+    dkim_public_key = str(mail_cfg.get("dkim_public_key", "")).strip() or None
+
+    return MailStackProfile(
+        domain=domain,
+        hostname=str(mail_cfg.get("hostname", "mail")).strip() or "mail",
+        postmaster_address=postmaster_address,
+        enable_mailserver=enable_flags.get("mailserver", True),
+        enable_webmail=enable_flags.get("webmail", True),
+        enable_imap=bool(mail_cfg.get("enable_imap", True)),
+        enable_pop3=bool(mail_cfg.get("enable_pop3", False)),
+        enable_submission=bool(mail_cfg.get("enable_submission", True)),
+        enable_submissions=bool(mail_cfg.get("enable_submissions", True)),
+        enable_smtps=bool(mail_cfg.get("enable_smtps", False)),
+        dkim_selector=str(mail_cfg.get("dkim_selector", "mail")).strip() or "mail",
+        dkim_key_size=int(mail_cfg.get("dkim_key_size", 2048)),
+        dkim_public_key=dkim_public_key,
+        spf_policy=str(mail_cfg.get("spf_policy", "v=spf1 mx -all")).strip() or "v=spf1 mx -all",
+        dmarc_policy=(
+            str(
+                mail_cfg.get(
+                    "dmarc_policy",
+                    f"v=DMARC1; p=quarantine; rua=mailto:{postmaster_address}",
+                )
+            ).strip()
+            or f"v=DMARC1; p=quarantine; rua=mailto:{postmaster_address}"
+        ),
+        mailboxes=_mailbox_list_for_profile(mail_cfg.get("mailboxes")),
+    )
+
+
+@router.post("/mail/apply", response_model=MailStackApplyResponse)
+def apply_mail_profile(
+    payload: MailStackProfile,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+    docker_gateway: DockerGateway = Depends(get_docker_gateway),
+) -> MailStackApplyResponse:
+    manager = ConfigManager(db, docker_gateway)
+    lifecycle_manager = ServiceLifecycleManager(docker_gateway)
+
+    domain = _normalize_domain(payload.domain)
+    if not domain or not DOMAIN_PATTERN.fullmatch(domain):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Mail domain is invalid. Use a valid fqdn like example.com.",
+        )
+
+    postmaster_address = payload.postmaster_address.strip().lower()
+    if "@" not in postmaster_address:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Postmaster address must contain '@'.",
+        )
+    if payload.dkim_key_size < 1024 or payload.dkim_key_size > 4096:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="DKIM key size must be between 1024 and 4096.",
+        )
+
+    existing_mail_cfg = _active_config_json(db, "mailserver")
+    existing_mailboxes = _mailbox_list(existing_mail_cfg.get("mailboxes"))
+    normalized_mailboxes = _normalize_mailboxes_for_storage(payload.mailboxes, existing_mailboxes)
+
+    mailbox_emails: set[str] = set()
+    for mailbox in normalized_mailboxes:
+        email = str(mailbox.get("email", "")).lower()
+        if email in mailbox_emails:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Mailbox email duplicated: {email}",
+            )
+        mailbox_emails.add(email)
+        if not email.endswith(f"@{domain}"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Mailbox must match mail domain {domain}: {email}",
+            )
+
+    hostname = payload.hostname.strip().lower() or "mail"
+    mail_host = f"{hostname}.{domain}"
+    dkim_selector = payload.dkim_selector.strip().lower() or "mail"
+    dkim_public_key = (payload.dkim_public_key or "").strip() or None
+
+    service_payloads: list[tuple[str, bool, dict]] = [
+        (
+            "mailserver",
+            payload.enable_mailserver,
+            {
+                "domain": domain,
+                "hostname": hostname,
+                "postmaster_address": postmaster_address,
+                "enable_imap": payload.enable_imap,
+                "enable_pop3": payload.enable_pop3,
+                "enable_submission": payload.enable_submission,
+                "enable_submissions": payload.enable_submissions,
+                "enable_smtps": payload.enable_smtps,
+                "dkim_selector": dkim_selector,
+                "dkim_key_size": payload.dkim_key_size,
+                "dkim_public_key": dkim_public_key,
+                "spf_policy": payload.spf_policy.strip(),
+                "dmarc_policy": payload.dmarc_policy.strip(),
+                "mailboxes": normalized_mailboxes,
+            },
+        ),
+        (
+            "webmail",
+            payload.enable_webmail,
+            {
+                "mail_domain": domain,
+                "mail_host": mail_host,
+                "imap_port": 993,
+                "smtp_submission_port": 587,
+                "mailbox_count": len(normalized_mailboxes),
+            },
+        ),
+    ]
+
+    results: list[NetworkServiceApplyResult] = []
+    for service_slug, service_enabled, config_json in service_payloads:
+        service = _service_or_404(db, service_slug)
+        if not service_enabled:
+            lifecycle_result = lifecycle_manager.reconcile_enabled(service=service, enabled=False)
+            results.append(
+                NetworkServiceApplyResult(
+                    service_slug=service_slug,
+                    status=lifecycle_result.status,
+                    version=None,
+                    message=lifecycle_result.message,
+                    warnings=lifecycle_result.warnings,
+                )
+            )
+            continue
+
+        lifecycle_result = lifecycle_manager.reconcile_enabled(service=service, enabled=True)
+        pre_warnings = list(lifecycle_result.warnings)
+        if lifecycle_result.status != "failed":
+            pre_warnings += lifecycle_manager.ensure_running_before_apply(service=service)
+
+        version, warnings = manager.apply_candidate(
+            service=service,
+            actor=current_user,
+            payload=ConfigApplyRequest(
+                config_json=config_json,
+                raw_config="",
+                auto_reload=True,
+            ),
+        )
+        warnings = pre_warnings + warnings
+        results.append(
+            NetworkServiceApplyResult(
+                service_slug=service_slug,
+                status=version.apply_status,
+                version=version.version,
+                message=version.apply_message,
+                warnings=warnings,
+            )
+        )
+
+    success = all(item.status in {"applied", "disabled", "stopped"} for item in results)
+    suggestions = _suggest_mail_dns_records(payload)
+
+    audit = AuditService(db)
+    audit.record(
+        actor_user_id=current_user.id,
+        action="mail_stack_apply",
+        resource_type="settings",
+        resource_id="mail-stack",
+        status="success" if success else "failed",
+        ip_address=get_client_ip(request),
+        after={"profile": payload.model_dump(exclude={"mailboxes"})},
+        metadata_json={
+            "results": [item.model_dump() for item in results],
+            "mailbox_count": len(normalized_mailboxes),
+            "suggested_dns_records": [item.model_dump() for item in suggestions],
+        },
+    )
+    db.commit()
+
+    return MailStackApplyResponse(
+        success=success,
+        results=results,
+        suggested_dns_records=suggestions,
+    )
 
 
 @router.get("/network/profile", response_model=NetworkStackProfile)

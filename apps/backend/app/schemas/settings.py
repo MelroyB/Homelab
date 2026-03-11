@@ -18,6 +18,16 @@ class DnsRecord(BaseModel):
     value: str
 
 
+class MailboxEntry(BaseModel):
+    email: str
+    password: str | None = None
+    has_password: bool = False
+    display_name: str | None = None
+    quota_mb: int = 1024
+    enabled: bool = True
+    aliases: list[str] = Field(default_factory=list)
+
+
 class NetworkStackProfile(BaseModel):
     domain: str = "homelab.local"
     authoritative_domains: list[str] = Field(default_factory=lambda: ["homelab.local"])
@@ -64,6 +74,31 @@ class NetworkServiceApplyResult(BaseModel):
 class NetworkStackApplyResponse(BaseModel):
     success: bool
     results: list[NetworkServiceApplyResult] = Field(default_factory=list)
+
+
+class MailStackProfile(BaseModel):
+    domain: str = "example.com"
+    hostname: str = "mail"
+    postmaster_address: str = "postmaster@example.com"
+    enable_mailserver: bool = True
+    enable_webmail: bool = True
+    enable_imap: bool = True
+    enable_pop3: bool = False
+    enable_submission: bool = True
+    enable_submissions: bool = True
+    enable_smtps: bool = False
+    dkim_selector: str = "mail"
+    dkim_key_size: int = 2048
+    dkim_public_key: str | None = None
+    spf_policy: str = "v=spf1 mx -all"
+    dmarc_policy: str = "v=DMARC1; p=quarantine; rua=mailto:postmaster@example.com"
+    mailboxes: list[MailboxEntry] = Field(default_factory=list)
+
+
+class MailStackApplyResponse(BaseModel):
+    success: bool
+    results: list[NetworkServiceApplyResult] = Field(default_factory=list)
+    suggested_dns_records: list[DnsRecord] = Field(default_factory=list)
 
 
 class DhcpLeaseEntry(BaseModel):

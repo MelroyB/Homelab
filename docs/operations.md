@@ -43,6 +43,14 @@ make restart
   - enabled service: container is started (if stopped) before apply/reload
 - Use this to keep optional homelab services inactive until explicitly needed.
 
+## Mail settings flow
+
+- Settings page includes a unified mail profile (`mailserver` + `webmail`).
+- API:
+  - `GET /api/v1/settings/mail/profile`
+  - `POST /api/v1/settings/mail/apply`
+- Apply response includes suggested DNS records for `MX`, `SPF`, `DMARC`, and `DKIM`.
+
 ## Health monitoring
 
 - Liveness: `/health/live`

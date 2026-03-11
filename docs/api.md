@@ -77,6 +77,8 @@ Current service catalog includes foundational placeholders for future mail manag
 - `GET /api/v1/settings/network/profile`
 - `GET /api/v1/settings/network/dhcp/leases`
 - `POST /api/v1/settings/network/apply`
+- `GET /api/v1/settings/mail/profile`
+- `POST /api/v1/settings/mail/apply`
 
 `/settings/network/*` is intended as the unified management surface for:
 - dnsmasq DHCP scope/options/reservations
@@ -112,6 +114,12 @@ Apply behavior for each enabled flag:
 - `true`: marks service as enabled and attempts container start (if stopped) before config apply/reload
 
 `NetworkServiceApplyResult.status` can include `applied`, `disabled`, `stopped`, or `failed`.
+
+`/settings/mail/*` provides unified mail platform configuration:
+- `mailserver` + `webmail` enable/disable and apply in one flow
+- DKIM/SPF/DMARC profile fields
+- mailbox definitions (email, password, aliases, quota, enabled)
+- DNS record suggestions for `MX`, `SPF`, `DMARC`, and `DKIM`
 
 ## Error conventions
 

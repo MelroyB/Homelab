@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
 import {
+  applyMailStackProfile,
   applyNetworkStackProfile,
   getDhcpLeases,
+  getMailStackProfile,
   getNetworkStackProfile
 } from "../api/settings";
 import {
   DnsRecord,
   DhcpLeaseEntry,
   DhcpReservation,
+  MailboxEntry,
+  MailStackProfile,
   NetworkServiceApplyResult,
   NetworkStackProfile
 } from "../types/api";
@@ -53,6 +57,7 @@ function formatExpiry(value: string | null): string {
 
 export function SettingsPage() {
   const [profile, setProfile] = useState<NetworkStackProfile | null>(null);
+  const [mailProfile, setMailProfile] = useState<MailStackProfile | null>(null);
   const [dnsServersText, setDnsServersText] = useState("");
   const [dhcpDnsServersText, setDhcpDnsServersText] = useState("");
   const [dhcpNtpServersText, setDhcpNtpServersText] = useState("");
@@ -60,15 +65,25 @@ export function SettingsPage() {
   const [ntpServersText, setNtpServersText] = useState("");
   const [leases, setLeases] = useState<DhcpLeaseEntry[]>([]);
   const [results, setResults] = useState<NetworkServiceApplyResult[]>([]);
+  const [mailResults, setMailResults] = useState<NetworkServiceApplyResult[]>(
+    []
+  );
+  const [mailSuggestedDnsRecords, setMailSuggestedDnsRecords] = useState<
+    DnsRecord[]
+  >([]);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
+  const [mailError, setMailError] = useState<string | null>(null);
+  const [mailResult, setMailResult] = useState<string | null>(null);
 
   const reload = async () => {
-    const [profileData, leaseData] = await Promise.all([
+    const [profileData, leaseData, mailProfileData] = await Promise.all([
       getNetworkStackProfile(),
-      getDhcpLeases()
+      getDhcpLeases(),
+      getMailStackProfile()
     ]);
     setProfile(profileData);
+    setMailProfile(mailProfileData);
     setDnsServersText(profileData.dns_upstream_servers.join("\n"));
     setDhcpDnsServersText(profileData.dhcp_dns_servers.join("\n"));
     setDhcpNtpServersText(profileData.dhcp_ntp_servers.join("\n"));
@@ -80,7 +95,7 @@ export function SettingsPage() {
   useEffect(() => {
     reload().catch((err) =>
       setError(
-        err instanceof Error ? err.message : "Failed to load network profile"
+        err instanceof Error ? err.message : "Failed to load settings profile"
       )
     );
   }, []);
@@ -138,6 +153,43 @@ export function SettingsPage() {
   const removeReservation = (index: number) => {
     updateProfile({
       dhcp_reservations: (profile?.dhcp_reservations ?? []).filter(
+        (_item, itemIndex) => itemIndex !== index
+      )
+    });
+  };
+
+  const updateMailProfile = (patch: Partial<MailStackProfile>) => {
+    setMailProfile((prev) => (prev ? { ...prev, ...patch } : prev));
+  };
+
+  const updateMailbox = (index: number, patch: Partial<MailboxEntry>) => {
+    updateMailProfile({
+      mailboxes: (mailProfile?.mailboxes ?? []).map((item, itemIndex) =>
+        itemIndex === index ? { ...item, ...patch } : item
+      )
+    });
+  };
+
+  const addMailbox = () => {
+    updateMailProfile({
+      mailboxes: [
+        ...(mailProfile?.mailboxes ?? []),
+        {
+          email: "",
+          password: null,
+          has_password: false,
+          display_name: null,
+          quota_mb: 1024,
+          enabled: true,
+          aliases: []
+        }
+      ]
+    });
+  };
+
+  const removeMailbox = (index: number) => {
+    updateMailProfile({
+      mailboxes: (mailProfile?.mailboxes ?? []).filter(
         (_item, itemIndex) => itemIndex !== index
       )
     });
@@ -258,7 +310,82 @@ export function SettingsPage() {
     }
   };
 
-  if (!profile) {
+  const onApplyMail = async () => {
+    if (!mailProfile) {
+      return;
+    }
+
+    setMailError(null);
+    setMailResult(null);
+    setMailResults([]);
+    setMailSuggestedDnsRecords([]);
+
+    const domain = normalizeDomain(mailProfile.domain);
+    if (!domain.includes(".")) {
+      setMailError("Gebruik een geldig maildomein zoals example.com.");
+      return;
+    }
+    const postmasterAddress = mailProfile.postmaster_address
+      .trim()
+      .toLowerCase();
+    if (!postmasterAddress.includes("@")) {
+      setMailError("Postmaster e-mailadres is verplicht.");
+      return;
+    }
+
+    const mailboxes = (mailProfile.mailboxes ?? []).map((item) => ({
+      email: item.email.trim().toLowerCase(),
+      password: item.password?.trim() || null,
+      has_password: item.has_password,
+      display_name: item.display_name?.trim() || null,
+      quota_mb: item.quota_mb,
+      enabled: item.enabled,
+      aliases: (item.aliases ?? [])
+        .map((alias) => alias.trim().toLowerCase())
+        .filter((alias) => alias.length > 0)
+    }));
+
+    for (const mailbox of mailboxes) {
+      if (!mailbox.email) {
+        setMailError("Elke mailbox moet een e-mailadres hebben.");
+        return;
+      }
+      if (!mailbox.email.endsWith(`@${domain}`)) {
+        setMailError(`Mailbox ${mailbox.email} moet eindigen op @${domain}.`);
+        return;
+      }
+      if (!mailbox.password && !mailbox.has_password) {
+        setMailError(`Mailbox ${mailbox.email} heeft een wachtwoord nodig.`);
+        return;
+      }
+    }
+
+    try {
+      const response = await applyMailStackProfile({
+        ...mailProfile,
+        domain,
+        hostname: mailProfile.hostname.trim().toLowerCase(),
+        postmaster_address: postmasterAddress,
+        dkim_selector: mailProfile.dkim_selector.trim().toLowerCase(),
+        dkim_public_key: mailProfile.dkim_public_key?.trim() || null,
+        spf_policy: mailProfile.spf_policy.trim(),
+        dmarc_policy: mailProfile.dmarc_policy.trim(),
+        mailboxes
+      });
+      setMailResults(response.results);
+      setMailSuggestedDnsRecords(response.suggested_dns_records);
+      setMailResult(
+        response.success
+          ? "Mail stack toegepast (mailserver + webmail)."
+          : "Mail apply gedeeltelijk mislukt. Controleer de resultaten."
+      );
+      await reload();
+    } catch (err) {
+      setMailError(err instanceof Error ? err.message : "Mail apply failed");
+    }
+  };
+
+  if (!profile || !mailProfile) {
     return <div>Loading settings...</div>;
   }
 
@@ -828,6 +955,349 @@ export function SettingsPage() {
                         {item.is_expired ? "expired" : "active"}
                       </span>
                     </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      <div className="page-header">
+        <h2>Mail Platform</h2>
+        <button className="btn" onClick={onApplyMail}>
+          Apply Mail Server + Webmail
+        </button>
+      </div>
+
+      <div className="card">
+        <p>
+          Beheer mail als één geheel: SMTP/IMAP, mailboxen, DKIM/SPF/DMARC en
+          webmail.
+        </p>
+      </div>
+
+      {mailError ? <div className="error">{mailError}</div> : null}
+      {mailResult ? <div className="success">{mailResult}</div> : null}
+
+      <div className="two-column">
+        <form
+          className="card"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onApplyMail();
+          }}
+        >
+          <h3>Mail Services</h3>
+          <label>
+            <input
+              type="checkbox"
+              checked={mailProfile.enable_mailserver}
+              onChange={(e) =>
+                updateMailProfile({ enable_mailserver: e.target.checked })
+              }
+            />
+            Mailserver inschakelen
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={mailProfile.enable_webmail}
+              onChange={(e) =>
+                updateMailProfile({ enable_webmail: e.target.checked })
+              }
+            />
+            Webmail inschakelen
+          </label>
+
+          <h3>Mail Domein</h3>
+          <label>
+            Domein
+            <input
+              value={mailProfile.domain}
+              onChange={(e) => updateMailProfile({ domain: e.target.value })}
+              placeholder="example.com"
+            />
+          </label>
+          <label>
+            Mail hostname
+            <input
+              value={mailProfile.hostname}
+              onChange={(e) => updateMailProfile({ hostname: e.target.value })}
+              placeholder="mail"
+            />
+          </label>
+          <label>
+            Postmaster e-mail
+            <input
+              value={mailProfile.postmaster_address}
+              onChange={(e) =>
+                updateMailProfile({ postmaster_address: e.target.value })
+              }
+              placeholder="postmaster@example.com"
+            />
+          </label>
+
+          <h3>Protocol Opties</h3>
+          <label>
+            <input
+              type="checkbox"
+              checked={mailProfile.enable_imap}
+              onChange={(e) =>
+                updateMailProfile({ enable_imap: e.target.checked })
+              }
+            />
+            IMAP
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={mailProfile.enable_pop3}
+              onChange={(e) =>
+                updateMailProfile({ enable_pop3: e.target.checked })
+              }
+            />
+            POP3
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={mailProfile.enable_submission}
+              onChange={(e) =>
+                updateMailProfile({ enable_submission: e.target.checked })
+              }
+            />
+            SMTP Submission (587)
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={mailProfile.enable_submissions}
+              onChange={(e) =>
+                updateMailProfile({ enable_submissions: e.target.checked })
+              }
+            />
+            SMTP Submissions TLS (465)
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={mailProfile.enable_smtps}
+              onChange={(e) =>
+                updateMailProfile({ enable_smtps: e.target.checked })
+              }
+            />
+            SMTPS legacy
+          </label>
+
+          <h3>DKIM / SPF / DMARC</h3>
+          <label>
+            DKIM selector
+            <input
+              value={mailProfile.dkim_selector}
+              onChange={(e) =>
+                updateMailProfile({ dkim_selector: e.target.value })
+              }
+              placeholder="mail"
+            />
+          </label>
+          <label>
+            DKIM key size
+            <input
+              type="number"
+              min={1024}
+              step={1024}
+              value={mailProfile.dkim_key_size}
+              onChange={(e) =>
+                updateMailProfile({
+                  dkim_key_size: Number.parseInt(e.target.value, 10) || 2048
+                })
+              }
+            />
+          </label>
+          <label>
+            DKIM public key (optioneel)
+            <textarea
+              rows={4}
+              value={mailProfile.dkim_public_key ?? ""}
+              onChange={(e) =>
+                updateMailProfile({ dkim_public_key: e.target.value || null })
+              }
+              placeholder="MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A..."
+            />
+          </label>
+          <label>
+            SPF policy
+            <input
+              value={mailProfile.spf_policy}
+              onChange={(e) =>
+                updateMailProfile({ spf_policy: e.target.value })
+              }
+              placeholder="v=spf1 mx -all"
+            />
+          </label>
+          <label>
+            DMARC policy
+            <input
+              value={mailProfile.dmarc_policy}
+              onChange={(e) =>
+                updateMailProfile({ dmarc_policy: e.target.value })
+              }
+              placeholder="v=DMARC1; p=quarantine; rua=mailto:postmaster@example.com"
+            />
+          </label>
+
+          <h3>Mailboxen</h3>
+          {(mailProfile.mailboxes ?? []).length === 0 ? (
+            <p>Nog geen mailboxen ingesteld.</p>
+          ) : null}
+          {(mailProfile.mailboxes ?? []).map((item, index) => (
+            <div key={`${index}-${item.email}`} className="inline-form">
+              <label>
+                E-mail
+                <input
+                  value={item.email}
+                  onChange={(e) =>
+                    updateMailbox(index, {
+                      email: e.target.value.toLowerCase()
+                    })
+                  }
+                  placeholder="user@example.com"
+                />
+              </label>
+              <label>
+                Wachtwoord
+                <input
+                  type="password"
+                  value={item.password ?? ""}
+                  onChange={(e) =>
+                    updateMailbox(index, {
+                      password: e.target.value || null,
+                      has_password: e.target.value ? true : item.has_password
+                    })
+                  }
+                  placeholder={
+                    item.has_password
+                      ? "Leeg laten om huidig wachtwoord te houden"
+                      : "Nieuw wachtwoord"
+                  }
+                />
+              </label>
+              <label>
+                Display name
+                <input
+                  value={item.display_name ?? ""}
+                  onChange={(e) =>
+                    updateMailbox(index, {
+                      display_name: e.target.value || null
+                    })
+                  }
+                  placeholder="Naam"
+                />
+              </label>
+              <label>
+                Quota MB
+                <input
+                  type="number"
+                  min={10}
+                  value={item.quota_mb}
+                  onChange={(e) =>
+                    updateMailbox(index, {
+                      quota_mb: Number.parseInt(e.target.value, 10) || 10
+                    })
+                  }
+                />
+              </label>
+              <label>
+                Aliases (comma separated)
+                <input
+                  value={(item.aliases ?? []).join(", ")}
+                  onChange={(e) =>
+                    updateMailbox(index, {
+                      aliases: e.target.value
+                        .split(",")
+                        .map((alias) => alias.trim().toLowerCase())
+                        .filter((alias) => alias.length > 0)
+                    })
+                  }
+                  placeholder="info@example.com, sales@example.com"
+                />
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={item.enabled}
+                  onChange={(e) =>
+                    updateMailbox(index, { enabled: e.target.checked })
+                  }
+                />
+                Mailbox actief
+              </label>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => removeMailbox(index)}
+              >
+                Verwijder
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={addMailbox}
+          >
+            Mailbox toevoegen
+          </button>
+        </form>
+
+        <div className="card">
+          <h3>Mail Apply Results</h3>
+          {mailResults.length === 0 ? (
+            <p>Nog geen mail apply uitgevoerd in deze sessie.</p>
+          ) : (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Service</th>
+                  <th>Status</th>
+                  <th>Version</th>
+                  <th>Message</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mailResults.map((item) => (
+                  <tr key={`mail-${item.service_slug}`}>
+                    <td>{item.service_slug}</td>
+                    <td>
+                      <StatusBadge value={item.status} />
+                    </td>
+                    <td>{item.version ?? "-"}</td>
+                    <td>{item.message}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          <h3>Aanbevolen DNS records</h3>
+          {mailSuggestedDnsRecords.length === 0 ? (
+            <p>Voer een mail apply uit om DKIM/SPF/DMARC records te tonen.</p>
+          ) : (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mailSuggestedDnsRecords.map((item, index) => (
+                  <tr key={`mail-dns-${index}-${item.name}`}>
+                    <td>{item.name}</td>
+                    <td>{item.type}</td>
+                    <td className="mono">{item.value}</td>
                   </tr>
                 ))}
               </tbody>

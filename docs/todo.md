@@ -22,9 +22,11 @@
 - [x] Add custom authoritative domains list for BIND nameserver zones in Settings
 - [ ] Add DNS record-type specific validation/hints (A/AAAA IP validation, MX priority, SRV structure)
 - [ ] Add per-domain DNS record sets and SOA/NS defaults for multi-zone operation
+- [x] Add managed mail settings API baseline (`/settings/mail/profile` and `/settings/mail/apply`)
+- [x] Add mailbox management UI baseline in Settings (mailbox definitions + apply flow)
 - [ ] Add managed mail stack services (`mailserver`, `webmail`) in compose/runtime with persistent state
-- [ ] Add guided mail domain setup flow (MX, SPF, DKIM, DMARC)
-- [ ] Add mailbox management UI/API (create mailbox, aliases, quota, password reset, disable)
+- [ ] Add guided mail domain setup flow (MX, SPF, DKIM, DMARC) with runtime validators
+- [ ] Add mailbox runtime provisioning and password rotation (apply to mail backend, not only config model)
 - [ ] Add mail queue + delivery status visibility in UI
 - [ ] Add DKIM key lifecycle management (generate, rotate, publish selectors)
 - [ ] Add anti-abuse baseline (rate limits, fail2ban integration, relay restrictions)

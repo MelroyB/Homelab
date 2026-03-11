@@ -1,4 +1,5 @@
 DOMAINNAME={{ config.get("domain", "example.com") }}
+HOSTNAME={{ config.get("hostname", "mail") }}
 POSTMASTER_ADDRESS={{ config.get("postmaster_address", "postmaster@example.com") }}
 ENABLE_IMAP={{ "1" if config.get("enable_imap", True) else "0" }}
 ENABLE_POP3={{ "1" if config.get("enable_pop3", False) else "0" }}
@@ -9,3 +10,4 @@ DKIM_SELECTOR={{ config.get("dkim_selector", "mail") }}
 DKIM_KEY_SIZE={{ config.get("dkim_key_size", 2048) }}
 SPF_POLICY={{ config.get("spf_policy", "v=spf1 mx -all") }}
 DMARC_POLICY={{ config.get("dmarc_policy", "v=DMARC1; p=quarantine; rua=mailto:postmaster@example.com") }}
+MAILBOXES_COUNT={{ config.get("mailboxes", [])|length }}
