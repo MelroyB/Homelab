@@ -12,3 +12,18 @@ dhcp-range={{ range }}
 {% if config.get('router') %}
 dhcp-option=option:router,{{ config.get('router') }}
 {% endif %}
+{% if config.get('dhcp_authoritative', True) %}
+dhcp-authoritative
+{% endif %}
+{% for dns_server in config.get('dhcp_dns_servers', []) %}
+dhcp-option=option:dns-server,{{ dns_server }}
+{% endfor %}
+{% for ntp_server in config.get('dhcp_ntp_servers', []) %}
+dhcp-option=option:ntp-server,{{ ntp_server }}
+{% endfor %}
+{% if config.get('dhcp_domain_search') %}
+dhcp-option=option:domain-search,{{ config.get('dhcp_domain_search') }}
+{% endif %}
+{% for reservation in config.get('dhcp_reservations', []) %}
+dhcp-host={{ reservation.mac }},{{ reservation.ip }}{% if reservation.hostname %},{{ reservation.hostname }}{% endif %}{% if reservation.lease %},{{ reservation.lease }}{% endif %}
+{% endfor %}

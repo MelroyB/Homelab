@@ -17,7 +17,7 @@ This project is a single-node control plane for homelab infra services with a mi
 
 ## Core management model
 
-1. UI submits desired config (form JSON + optional raw text)
+1. UI submits desired config (guided form or profile payload + optional raw text where supported)
 2. Backend renderer generates candidate config text
 3. Validator checks service-specific constraints
 4. Candidate is versioned in DB (`service_config_versions`)
@@ -25,6 +25,16 @@ This project is a single-node control plane for homelab infra services with a mi
 6. Backend triggers `reload` (or `restart`) via Docker API
 7. Result is persisted and audited
 8. Rollback creates a new version from a previous version and reapplies
+
+## Unified network stack flow
+
+- `Settings` provides one combined profile for DNS + DHCP + NTP.
+- Backend fans this profile out into coordinated service applies for:
+  - `dnsmasq` (scope/options/reservations/upstream resolvers)
+  - `bind9` (authoritative zone baseline records)
+  - `ntp` (upstream + local fallback config)
+- DHCP lease visibility is read from `dnsmasq.leases` under `data_dir/state/dnsmasq/`.
+- Every combined apply is audited as a single `network_stack_apply` action with per-service results.
 
 ## Primary interfaces
 

@@ -12,6 +12,9 @@
 - [x] Add schema-driven forms for dnsmasq and BIND9 in Service Detail UI
 - [x] Add NTP configuration form + validation flow in Service Detail UI
 - [x] Add guided Caddy configuration form in Service Detail UI
+- [x] Add unified Network Stack flow (DNS + DHCP + NTP) in Settings
+- [x] Add DHCP leases visibility in Settings
+- [x] Add DHCP scope options and reservation management in Settings
 - [ ] Add API pagination and filtering for audit and logs
 - [ ] Add config diff endpoint and frontend visual diff
 - [ ] Add scheduled and retained backups

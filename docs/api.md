@@ -62,6 +62,19 @@ FastAPI exposes OpenAPI docs at:
 - `GET /api/v1/health/live`
 - `GET /api/v1/health/ready`
 
+### Settings
+
+- `GET /api/v1/settings/profile`
+- `GET /api/v1/settings/network/profile`
+- `GET /api/v1/settings/network/dhcp/leases`
+- `POST /api/v1/settings/network/apply`
+
+`/settings/network/*` is intended as the unified management surface for:
+- dnsmasq DHCP scope/options/reservations
+- dnsmasq upstream resolver settings
+- BIND9 zone baseline records
+- NTP upstream/local-fallback settings
+
 ## Error conventions
 
 - 400: validation/request errors

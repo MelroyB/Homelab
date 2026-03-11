@@ -27,6 +27,8 @@
 
 - [x] dnsmasq and BIND schema-driven forms
 - [x] Guided Caddy form in Service Detail UI
+- [x] Unified Network Stack profile apply for DNS + DHCP + NTP
+- [x] DHCP leases view and DHCP reservations management in Settings UI
 - [ ] syntax validation by native binaries (`dnsmasq --test`, `named-checkzone`)
 - [ ] safer apply with staged dry-run checks
 
@@ -61,6 +63,8 @@
 
 - Alembic migration baseline integrated; backend startup no longer uses runtime `create_all`.
 - Guided service config forms shipped for Caddy, dnsmasq, BIND9, and NTP.
+- Unified Settings-based Network Stack flow shipped (DNS + DHCP + NTP together).
+- DHCP scope options, reservations, and live lease visibility shipped.
 
 ## Backlog (prioritized)
 

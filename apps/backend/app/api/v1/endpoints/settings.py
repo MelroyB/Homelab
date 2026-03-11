@@ -1,11 +1,35 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from datetime import datetime, timezone
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import (
+    get_client_ip,
+    get_current_user,
+    get_docker_gateway,
+    get_settings_dep,
+    require_admin,
+)
+from app.core.config import Settings
 from app.db.session import get_db
+from app.models.service import ManagedService, ServiceConfigVersion
 from app.models.user import User
+from app.schemas.service import ConfigApplyRequest
+from app.schemas.settings import (
+    DhcpLeaseEntry,
+    DhcpLeasesResponse,
+    DhcpReservation,
+    NetworkServiceApplyResult,
+    NetworkStackApplyResponse,
+    NetworkStackProfile,
+)
+from app.services.audit.service import AuditService
+from app.services.config.manager import ConfigManager
+from app.services.docker_gateway import DockerGateway
 
 router = APIRouter()
 
@@ -21,3 +45,324 @@ def profile(
         "role": current_user.role,
         "message": "RBAC and user self-service settings land in Phase 5.",
     }
+
+
+def _service_or_404(db: Session, slug: str) -> ManagedService:
+    service = db.scalar(select(ManagedService).where(ManagedService.slug == slug))
+    if service is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Service {slug} not found",
+        )
+    return service
+
+
+def _active_config_json(db: Session, slug: str) -> dict:
+    active = db.scalar(
+        select(ServiceConfigVersion).where(
+            ServiceConfigVersion.service_slug == slug,
+            ServiceConfigVersion.is_active.is_(True),
+        )
+    )
+    if active and isinstance(active.config_json, dict):
+        return active.config_json
+    return {}
+
+
+def _default_zone_serial() -> int:
+    return int(datetime.now(timezone.utc).strftime("%Y%m%d01"))
+
+
+def _string_list(value: object, fallback: list[str]) -> list[str]:
+    if not isinstance(value, list):
+        return fallback
+    parsed = [str(item).strip() for item in value if str(item).strip()]
+    return parsed if parsed else fallback
+
+
+def _reservation_list(value: object) -> list[DhcpReservation]:
+    if not isinstance(value, list):
+        return []
+    reservations: list[DhcpReservation] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        mac = str(item.get("mac", "")).strip()
+        ip = str(item.get("ip", "")).strip()
+        if not mac or not ip:
+            continue
+        hostname_raw = str(item.get("hostname", "")).strip()
+        lease_raw = str(item.get("lease", "")).strip()
+        reservations.append(
+            DhcpReservation(
+                mac=mac,
+                ip=ip,
+                hostname=hostname_raw or None,
+                lease=lease_raw or None,
+            )
+        )
+    return reservations
+
+
+def _to_fqdn(host: str, domain: str) -> str:
+    host_value = host.strip().rstrip(".")
+    domain_value = domain.strip().strip(".")
+    if not host_value:
+        return f"ns1.{domain_value}."
+    if host_value.endswith(domain_value):
+        return f"{host_value}."
+    return f"{host_value}.{domain_value}."
+
+
+def _split_dhcp_range(value: str) -> tuple[str, str, str]:
+    start, end, lease = "", "", ""
+    if value:
+        parts = [item.strip() for item in value.split(",")]
+        if len(parts) > 0:
+            start = parts[0]
+        if len(parts) > 1:
+            end = parts[1]
+        if len(parts) > 2:
+            lease = parts[2]
+    return start, end, lease
+
+
+def _parse_lease_line(line: str) -> DhcpLeaseEntry | None:
+    parts = line.strip().split(maxsplit=4)
+    if len(parts) < 3:
+        return None
+
+    expiry_raw = parts[0]
+    mac = parts[1].strip()
+    ip = parts[2].strip()
+    hostname = parts[3].strip() if len(parts) > 3 else ""
+    client_id = parts[4].strip() if len(parts) > 4 else ""
+
+    expires_at = None
+    is_expired = False
+    try:
+        expiry_epoch = int(expiry_raw)
+        if expiry_epoch > 0:
+            expires_at = datetime.fromtimestamp(expiry_epoch, tz=timezone.utc)
+            is_expired = expires_at < datetime.now(timezone.utc)
+    except ValueError:
+        expires_at = None
+        is_expired = False
+
+    return DhcpLeaseEntry(
+        expires_at=expires_at,
+        is_expired=is_expired,
+        mac=mac,
+        ip=ip,
+        hostname=None if hostname in {"", "*"} else hostname,
+        client_id=None if client_id in {"", "*"} else client_id,
+    )
+
+
+@router.get("/network/dhcp/leases", response_model=DhcpLeasesResponse)
+def dhcp_leases(
+    settings: Settings = Depends(get_settings_dep),
+    _admin_user: User = Depends(require_admin),
+) -> DhcpLeasesResponse:
+    lease_path = Path(settings.data_dir) / "state" / "dnsmasq" / "dnsmasq.leases"
+    if not lease_path.exists():
+        return DhcpLeasesResponse(items=[])
+
+    items: list[DhcpLeaseEntry] = []
+    for line in lease_path.read_text(encoding="utf-8", errors="replace").splitlines():
+        if not line.strip():
+            continue
+        parsed = _parse_lease_line(line)
+        if parsed is not None:
+            items.append(parsed)
+
+    return DhcpLeasesResponse(items=items)
+
+
+@router.get("/network/profile", response_model=NetworkStackProfile)
+def network_profile(
+    db: Session = Depends(get_db),
+    _admin_user: User = Depends(require_admin),
+) -> NetworkStackProfile:
+    dnsmasq_cfg = _active_config_json(db, "dnsmasq")
+    bind9_cfg = _active_config_json(db, "bind9")
+    ntp_cfg = _active_config_json(db, "ntp")
+
+    dhcp_ranges = dnsmasq_cfg.get("dhcp_ranges", [])
+    primary_range = dhcp_ranges[0] if isinstance(dhcp_ranges, list) and dhcp_ranges else ""
+    dhcp_start, dhcp_end, dhcp_lease = _split_dhcp_range(str(primary_range))
+
+    records = bind9_cfg.get("records", [])
+    records_by_name: dict[str, dict] = {}
+    if isinstance(records, list):
+        for item in records:
+            if isinstance(item, dict) and isinstance(item.get("name"), str):
+                records_by_name[item["name"]] = item
+
+    nameserver_host = str(bind9_cfg.get("nameserver_host", "ns1"))
+    api_host = str(bind9_cfg.get("api_host", "api"))
+    dashboard_host = str(bind9_cfg.get("dashboard_host", "dashboard"))
+    nameserver_record = records_by_name.get(nameserver_host, {})
+    api_record = records_by_name.get(api_host, {})
+    dashboard_record = records_by_name.get(dashboard_host, {})
+
+    dns_servers = dnsmasq_cfg.get("upstream_servers", ["1.1.1.1", "1.0.0.1"])
+    ntp_servers = ntp_cfg.get("servers", ["time.cloudflare.com", "time.google.com"])
+
+    return NetworkStackProfile(
+        domain=str(dnsmasq_cfg.get("domain", "homelab.local")),
+        router_ip=str(dnsmasq_cfg.get("router", "192.168.50.1")),
+        dhcp_range_start=dhcp_start or "192.168.50.100",
+        dhcp_range_end=dhcp_end or "192.168.50.200",
+        dhcp_lease=dhcp_lease or "12h",
+        dhcp_authoritative=bool(dnsmasq_cfg.get("dhcp_authoritative", True)),
+        dhcp_dns_servers=_string_list(dnsmasq_cfg.get("dhcp_dns_servers"), []),
+        dhcp_ntp_servers=_string_list(dnsmasq_cfg.get("dhcp_ntp_servers"), []),
+        dhcp_domain_search=str(dnsmasq_cfg.get("dhcp_domain_search", "")).strip() or None,
+        dhcp_reservations=_reservation_list(dnsmasq_cfg.get("dhcp_reservations")),
+        dns_upstream_servers=_string_list(dns_servers, ["1.1.1.1", "1.0.0.1"]),
+        dns_cache_size=int(dnsmasq_cfg.get("cache_size", 1000)),
+        zone_ttl=int(bind9_cfg.get("ttl", 3600)),
+        zone_serial=int(bind9_cfg.get("serial", _default_zone_serial())),
+        nameserver_host=nameserver_host,
+        nameserver_ip=str(nameserver_record.get("value", "192.168.50.2")),
+        api_host=api_host,
+        api_ip=str(api_record.get("value", "192.168.50.10")),
+        dashboard_host=dashboard_host,
+        dashboard_ip=str(dashboard_record.get("value", "192.168.50.10")),
+        ntp_servers=_string_list(ntp_servers, ["time.cloudflare.com", "time.google.com"]),
+        ntp_iburst=bool(ntp_cfg.get("iburst", True)),
+        ntp_disable_monitor=bool(ntp_cfg.get("disable_monitor", True)),
+        ntp_local_clock=bool(ntp_cfg.get("local_clock", False)),
+        ntp_local_stratum=int(ntp_cfg.get("local_stratum", 10)),
+    )
+
+
+@router.post("/network/apply", response_model=NetworkStackApplyResponse)
+def apply_network_profile(
+    payload: NetworkStackProfile,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+    docker_gateway: DockerGateway = Depends(get_docker_gateway),
+) -> NetworkStackApplyResponse:
+    manager = ConfigManager(db, docker_gateway)
+    domain = payload.domain.strip()
+    dns_servers = [item.strip() for item in payload.dns_upstream_servers if item.strip()]
+    dhcp_dns_servers = [item.strip() for item in payload.dhcp_dns_servers if item.strip()]
+    dhcp_ntp_servers = [item.strip() for item in payload.dhcp_ntp_servers if item.strip()]
+    ntp_servers = [item.strip() for item in payload.ntp_servers if item.strip()]
+
+    bind_records = [
+        {
+            "name": payload.nameserver_host.strip(),
+            "type": "A",
+            "value": payload.nameserver_ip.strip(),
+        },
+        {"name": payload.api_host.strip(), "type": "A", "value": payload.api_ip.strip()},
+        {
+            "name": payload.dashboard_host.strip(),
+            "type": "A",
+            "value": payload.dashboard_ip.strip(),
+        },
+    ]
+    bind_records = [
+        record for record in bind_records if record["name"] and record["type"] and record["value"]
+    ]
+    dnsmasq_reservations = [
+        {
+            "mac": item.mac.strip().lower(),
+            "ip": item.ip.strip(),
+            "hostname": item.hostname.strip() if item.hostname else None,
+            "lease": item.lease.strip() if item.lease else None,
+        }
+        for item in payload.dhcp_reservations
+        if item.mac.strip() and item.ip.strip()
+    ]
+
+    service_payloads: list[tuple[str, dict]] = [
+        (
+            "dnsmasq",
+            {
+                "upstream_servers": dns_servers,
+                "domain": domain,
+                "cache_size": payload.dns_cache_size,
+                "dhcp_ranges": [
+                    f"{payload.dhcp_range_start.strip()},{payload.dhcp_range_end.strip()},{payload.dhcp_lease.strip()}"
+                ],
+                "router": payload.router_ip.strip(),
+                "dhcp_authoritative": payload.dhcp_authoritative,
+                "dhcp_dns_servers": dhcp_dns_servers,
+                "dhcp_ntp_servers": dhcp_ntp_servers,
+                "dhcp_domain_search": (
+                    payload.dhcp_domain_search.strip() if payload.dhcp_domain_search else None
+                ),
+                "dhcp_reservations": dnsmasq_reservations,
+            },
+        ),
+        (
+            "bind9",
+            {
+                "ttl": payload.zone_ttl,
+                "primary_ns": _to_fqdn(payload.nameserver_host, domain),
+                "admin_email": f"admin.{domain.strip('.')}." if domain else "admin.homelab.local.",
+                "serial": payload.zone_serial or _default_zone_serial(),
+                "nameserver_host": payload.nameserver_host.strip(),
+                "nameserver_ip": payload.nameserver_ip.strip(),
+                "api_host": payload.api_host.strip(),
+                "api_ip": payload.api_ip.strip(),
+                "dashboard_host": payload.dashboard_host.strip(),
+                "dashboard_ip": payload.dashboard_ip.strip(),
+                "records": bind_records,
+            },
+        ),
+        (
+            "ntp",
+            {
+                "servers": ntp_servers,
+                "iburst": payload.ntp_iburst,
+                "disable_monitor": payload.ntp_disable_monitor,
+                "local_clock": payload.ntp_local_clock,
+                "local_stratum": payload.ntp_local_stratum,
+            },
+        ),
+    ]
+
+    results: list[NetworkServiceApplyResult] = []
+    for service_slug, config_json in service_payloads:
+        service = _service_or_404(db, service_slug)
+        version, warnings = manager.apply_candidate(
+            service=service,
+            actor=current_user,
+            payload=ConfigApplyRequest(
+                config_json=config_json,
+                raw_config="",
+                auto_reload=True,
+            ),
+        )
+        results.append(
+            NetworkServiceApplyResult(
+                service_slug=service_slug,
+                status=version.apply_status,
+                version=version.version,
+                message=version.apply_message,
+                warnings=warnings,
+            )
+        )
+
+    success = all(item.status == "applied" for item in results)
+
+    audit = AuditService(db)
+    audit.record(
+        actor_user_id=current_user.id,
+        action="network_stack_apply",
+        resource_type="settings",
+        resource_id="network-stack",
+        status="success" if success else "failed",
+        ip_address=get_client_ip(request),
+        after={"profile": payload.model_dump()},
+        metadata_json={"results": [item.model_dump() for item in results]},
+    )
+    db.commit()
+
+    return NetworkStackApplyResponse(success=success, results=results)

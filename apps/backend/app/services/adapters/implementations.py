@@ -74,7 +74,9 @@ class NtpValidator(ConfigValidator):
     def validate(self, service: ManagedService, rendered_config: str) -> tuple[bool, list[str]]:
         errors: list[str] = []
         server_lines = [
-            line.strip() for line in rendered_config.splitlines() if line.strip().startswith("server ")
+            line.strip()
+            for line in rendered_config.splitlines()
+            if line.strip().startswith("server ")
         ]
         if not server_lines:
             errors.append("NTP config should include at least one server line")

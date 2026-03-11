@@ -165,3 +165,64 @@ export interface DockerImageUpdatesResponse {
   scope: "project" | "all";
   items: DockerImageUpdateStatus[];
 }
+
+export interface NetworkStackProfile {
+  domain: string;
+  router_ip: string;
+  dhcp_range_start: string;
+  dhcp_range_end: string;
+  dhcp_lease: string;
+  dhcp_authoritative: boolean;
+  dhcp_dns_servers: string[];
+  dhcp_ntp_servers: string[];
+  dhcp_domain_search: string | null;
+  dhcp_reservations: DhcpReservation[];
+  dns_upstream_servers: string[];
+  dns_cache_size: number;
+  zone_ttl: number;
+  zone_serial: number | null;
+  nameserver_host: string;
+  nameserver_ip: string;
+  api_host: string;
+  api_ip: string;
+  dashboard_host: string;
+  dashboard_ip: string;
+  ntp_servers: string[];
+  ntp_iburst: boolean;
+  ntp_disable_monitor: boolean;
+  ntp_local_clock: boolean;
+  ntp_local_stratum: number;
+}
+
+export interface DhcpReservation {
+  mac: string;
+  ip: string;
+  hostname: string | null;
+  lease: string | null;
+}
+
+export interface DhcpLeaseEntry {
+  expires_at: string | null;
+  is_expired: boolean;
+  mac: string;
+  ip: string;
+  hostname: string | null;
+  client_id: string | null;
+}
+
+export interface DhcpLeasesResponse {
+  items: DhcpLeaseEntry[];
+}
+
+export interface NetworkServiceApplyResult {
+  service_slug: string;
+  status: string;
+  version: number | null;
+  message: string;
+  warnings: string[];
+}
+
+export interface NetworkStackApplyResponse {
+  success: boolean;
+  results: NetworkServiceApplyResult[];
+}
