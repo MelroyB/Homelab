@@ -128,6 +128,9 @@ Apply behavior for each enabled flag:
 - mail runtime provisioning files include both generic and Docker Mailserver-compatible formats:
   - `accounts.cf`, `aliases.cf`, `mailboxes.json`
   - `postfix-accounts.cf` (`{SHA512-CRYPT}` hashes), `postfix-virtual.cf`
+- compose runtime env files are rendered via config pipeline:
+  - `mailserver.env` (Docker Mailserver environment)
+  - `webmail.env` (Roundcube environment)
 
 `/settings/mail/dns/suggestions` response model:
 - `valid: boolean` (false when one or more `error` issues exist)

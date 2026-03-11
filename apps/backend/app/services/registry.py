@@ -90,8 +90,8 @@ SERVICE_CATALOG: list[ServiceMeta] = [
         category="messaging",
         description="Web interface for mailbox access",
         container_name="homelab-webmail-1",
-        config_path="",
-        template_name="",
+        config_path="/var/lib/homelab/config/webmail/webmail.env",
+        template_name="webmail.j2",
         supports_raw_edit=False,
     ),
     ServiceMeta(

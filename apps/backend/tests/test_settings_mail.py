@@ -46,10 +46,15 @@ def test_mail_profile_apply_with_mailbox(client):
         mailserver = db.scalar(
             select(ManagedService).where(ManagedService.slug == "mailserver")
         )
+        webmail = db.scalar(select(ManagedService).where(ManagedService.slug == "webmail"))
         assert mailserver is not None
+        assert webmail is not None
         test_path = Path.cwd() / ".tmp" / "tests" / "mailserver.env"
+        webmail_path = Path.cwd() / ".tmp" / "tests" / "webmail.env"
         mailserver.config_path = str(test_path)
+        webmail.config_path = str(webmail_path)
         db.add(mailserver)
+        db.add(webmail)
         db.commit()
 
     payload = {
@@ -119,15 +124,20 @@ def test_mail_profile_apply_with_mailbox(client):
     manifest_file = data_dir / "config" / "mailserver" / "mailboxes.json"
     dms_accounts_file = data_dir / "config" / "mailserver" / "postfix-accounts.cf"
     dms_virtual_file = data_dir / "config" / "mailserver" / "postfix-virtual.cf"
+    webmail_env_file = Path.cwd() / ".tmp" / "tests" / "webmail.env"
     assert accounts_file.exists()
     assert aliases_file.exists()
     assert manifest_file.exists()
     assert dms_accounts_file.exists()
     assert dms_virtual_file.exists()
+    assert webmail_env_file.exists()
     assert "admin@example.com|super-secret-mail-password" in accounts_file.read_text(
         encoding="utf-8"
     )
     assert "{SHA512-CRYPT}" in dms_accounts_file.read_text(encoding="utf-8")
+    assert 'ROUNDCUBEMAIL_DEFAULT_HOST="mailserver"' in webmail_env_file.read_text(
+        encoding="utf-8"
+    )
 
     profile_response = client.get("/api/v1/settings/mail/profile")
     assert profile_response.status_code == 200

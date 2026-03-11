@@ -1,0 +1,4 @@
+ROUNDCUBEMAIL_DEFAULT_HOST="{{ config.get("mail_host_internal", "mailserver") }}"
+ROUNDCUBEMAIL_DEFAULT_PORT={{ config.get("imap_port", 143) }}
+ROUNDCUBEMAIL_SMTP_SERVER="{{ config.get("smtp_host_internal", "mailserver") }}"
+ROUNDCUBEMAIL_SMTP_PORT={{ config.get("smtp_submission_port", 587) }}

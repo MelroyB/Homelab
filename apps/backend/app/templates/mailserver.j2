@@ -1,13 +1,23 @@
-DOMAINNAME={{ config.get("domain", "example.com") }}
-HOSTNAME={{ config.get("hostname", "mail") }}
-POSTMASTER_ADDRESS={{ config.get("postmaster_address", "postmaster@example.com") }}
+DOMAINNAME="{{ config.get("domain", "example.com") }}"
+HOSTNAME="{{ config.get("hostname", "mail") }}"
+OVERRIDE_HOSTNAME="{{ config.get("mail_host", "mail.example.com") }}"
+POSTMASTER_ADDRESS="{{ config.get("postmaster_address", "postmaster@example.com") }}"
 ENABLE_IMAP={{ "1" if config.get("enable_imap", True) else "0" }}
 ENABLE_POP3={{ "1" if config.get("enable_pop3", False) else "0" }}
 ENABLE_SUBMISSION={{ "1" if config.get("enable_submission", True) else "0" }}
 ENABLE_SUBMISSIONS={{ "1" if config.get("enable_submissions", True) else "0" }}
 ENABLE_SMTPS={{ "1" if config.get("enable_smtps", False) else "0" }}
-DKIM_SELECTOR={{ config.get("dkim_selector", "mail") }}
+DKIM_SELECTOR="{{ config.get("dkim_selector", "mail") }}"
 DKIM_KEY_SIZE={{ config.get("dkim_key_size", 2048) }}
-SPF_POLICY={{ config.get("spf_policy", "v=spf1 mx -all") }}
-DMARC_POLICY={{ config.get("dmarc_policy", "v=DMARC1; p=quarantine; rua=mailto:postmaster@example.com") }}
+SPF_POLICY="{{ config.get("spf_policy", "v=spf1 mx -all") }}"
+DMARC_POLICY="{{ config.get("dmarc_policy", "v=DMARC1; p=quarantine; rua=mailto:postmaster@example.com") }}"
+PERMIT_DOCKER=network
+ONE_DIR=1
+DMS_DEBUG=0
+SSL_TYPE="{{ config.get("ssl_type", "self-signed") }}"
+RUNTIME_ACCOUNTS_PATH="{{ config.get("runtime_accounts_path", "/var/lib/homelab/config/mailserver/accounts.cf") }}"
+RUNTIME_ALIASES_PATH="{{ config.get("runtime_aliases_path", "/var/lib/homelab/config/mailserver/aliases.cf") }}"
+RUNTIME_MANIFEST_PATH="{{ config.get("runtime_manifest_path", "/var/lib/homelab/config/mailserver/mailboxes.json") }}"
+RUNTIME_DMS_ACCOUNTS_PATH="{{ config.get("runtime_dms_accounts_path", "/var/lib/homelab/config/mailserver/postfix-accounts.cf") }}"
+RUNTIME_DMS_VIRTUAL_PATH="{{ config.get("runtime_dms_virtual_path", "/var/lib/homelab/config/mailserver/postfix-virtual.cf") }}"
 MAILBOXES_COUNT={{ config.get("mailboxes", [])|length }}

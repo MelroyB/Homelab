@@ -27,6 +27,10 @@ Production-minded monorepo scaffold for managing homelab infrastructure from one
 - Audit trail for auth/service/config/backup actions
 - Backup snapshot export/import of service config versions
 - Dashboard and per-service pages for operations workflows
+- Managed mail stack runtime deployment:
+  - SMTP/IMAP service (`mailserver`)
+  - Webmail service (`webmail`)
+  - unified settings/apply + runtime file generation
 
 ## Quick start (development)
 
@@ -54,6 +58,20 @@ docker compose up -d --build
 - Database migrations are applied automatically by backend container startup.
 - All persistent data is stored in one Docker volume: `homelab_data`.
 - Missing service subfolders and default config files are created automatically on container startup.
+
+## Mail stack runtime ports
+
+- SMTP: `MAIL_SMTP_PORT` (default `25`)
+- Submission: `MAIL_SUBMISSION_PORT` (default `587`)
+- IMAPS: `MAIL_IMAPS_PORT` (default `993`)
+- Webmail: `WEBMAIL_HTTP_PORT` (default `8081`)
+
+Mail services are managed from the Settings page (`Mail Platform`) and via:
+
+- `GET /api/v1/settings/mail/profile`
+- `POST /api/v1/settings/mail/dns/suggestions`
+- `POST /api/v1/settings/mail/apply`
+- `GET /api/v1/settings/mail/webmail/url`
 
 ## Useful commands
 

@@ -118,6 +118,20 @@ class MailserverValidator(ConfigValidator):
         return (len(errors) == 0, errors)
 
 
+class WebmailValidator(ConfigValidator):
+    def validate(self, service: ManagedService, rendered_config: str) -> tuple[bool, list[str]]:
+        errors: list[str] = []
+        if "ROUNDCUBEMAIL_DEFAULT_HOST=" not in rendered_config:
+            errors.append("Webmail config should include ROUNDCUBEMAIL_DEFAULT_HOST")
+        if "ROUNDCUBEMAIL_DEFAULT_PORT=" not in rendered_config:
+            errors.append("Webmail config should include ROUNDCUBEMAIL_DEFAULT_PORT")
+        if "ROUNDCUBEMAIL_SMTP_SERVER=" not in rendered_config:
+            errors.append("Webmail config should include ROUNDCUBEMAIL_SMTP_SERVER")
+        if "ROUNDCUBEMAIL_SMTP_PORT=" not in rendered_config:
+            errors.append("Webmail config should include ROUNDCUBEMAIL_SMTP_PORT")
+        return (len(errors) == 0, errors)
+
+
 class DockerServiceController(ServiceController):
     def __init__(self, docker_gateway: DockerGateway) -> None:
         self.docker_gateway = docker_gateway
@@ -151,6 +165,8 @@ def build_adapter(service: ManagedService, docker_gateway: DockerGateway) -> Ser
         validator = NtpValidator()
     elif service.slug == "mailserver":
         validator = MailserverValidator()
+    elif service.slug == "webmail":
+        validator = WebmailValidator()
 
     return ServiceAdapter(
         renderer=TemplateRenderer(),

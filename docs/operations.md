@@ -46,6 +46,14 @@ make restart
 ## Mail settings flow
 
 - Settings page includes a unified mail profile (`mailserver` + `webmail`).
+- Compose runtime now includes:
+  - `mailserver` (`homelab-mailserver-1`, Docker Mailserver image)
+  - `webmail` (`homelab-webmail-1`, Roundcube image)
+- Default exposed host ports:
+  - SMTP: `${MAIL_SMTP_PORT}` (default `25`)
+  - Submission: `${MAIL_SUBMISSION_PORT}` (default `587`)
+  - IMAPS: `${MAIL_IMAPS_PORT}` (default `993`)
+  - Webmail HTTP: `${WEBMAIL_HTTP_PORT}` (default `8081`)
 - API:
   - `GET /api/v1/settings/mail/profile`
   - `POST /api/v1/settings/mail/dns/suggestions`
@@ -60,6 +68,9 @@ make restart
   - `mailboxes.json`
   - `postfix-accounts.cf` (`{SHA512-CRYPT}` hashed passwords)
   - `postfix-virtual.cf`
+- Mail apply also writes runtime env files for compose services:
+  - `data_dir/config/mailserver/mailserver.env`
+  - `data_dir/config/webmail/webmail.env`
 
 ### Mail rollout sequence
 

@@ -70,7 +70,7 @@
 - [x] Webmail URL integration baseline (profile/apply + launch URL endpoint)
 - [x] Guided mail DNS setup baseline (`/settings/mail/dns/suggestions` with validation issues + record preview)
 - [x] Mail apply guard baseline (same setup validation enforced in `mail/apply`)
-- [ ] Managed mail stack deployment (SMTP/IMAP + webmail containers/runtime)
+- [x] Managed mail stack deployment (SMTP/IMAP + webmail containers/runtime)
 - [ ] DKIM key generation and rotation flow
 - [x] SPF and DMARC policy helper with DNS record generation
 - [ ] Mailbox CRUD with runtime provisioning (create, disable, reset password, aliases)
@@ -97,6 +97,7 @@
 - Mail settings API baseline shipped (`/settings/mail/profile`, `/settings/mail/apply`) including DKIM/SPF/DMARC fields and mailbox definitions.
 - Mail DNS setup-check endpoint shipped (`/settings/mail/dns/suggestions`) with validation feedback and record preview.
 - Mail apply now reuses setup validation and blocks invalid configurations before runtime writes/reload.
+- Mail runtime stack is now deployed in compose (`mailserver` + `webmail`) with generated runtime config/env files.
 - DHCP scope options, reservations, and live lease visibility shipped.
 - Manual DNS record management shipped in Settings (with common record type presets).
 - Custom authoritative BIND zone list shipped via Settings (`authoritative_domains`).

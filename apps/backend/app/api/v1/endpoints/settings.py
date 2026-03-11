@@ -806,6 +806,7 @@ def apply_mail_profile(
             {
                 "domain": domain,
                 "hostname": hostname,
+                "mail_host": mail_host,
                 "postmaster_address": postmaster_address,
                 "enable_imap": payload.enable_imap,
                 "enable_pop3": payload.enable_pop3,
@@ -821,6 +822,8 @@ def apply_mail_profile(
                 "runtime_accounts_path": runtime_paths["accounts_path"],
                 "runtime_aliases_path": runtime_paths["aliases_path"],
                 "runtime_manifest_path": runtime_paths["manifest_path"],
+                "runtime_dms_accounts_path": runtime_paths["dms_accounts_path"],
+                "runtime_dms_virtual_path": runtime_paths["dms_virtual_path"],
             },
         ),
         (
@@ -828,9 +831,11 @@ def apply_mail_profile(
             payload.enable_webmail,
             {
                 "mail_domain": domain,
-                "mail_host": mail_host,
+                "mail_host_public": mail_host,
+                "mail_host_internal": "mailserver",
+                "smtp_host_internal": "mailserver",
                 "webmail_url": webmail_url,
-                "imap_port": 993,
+                "imap_port": 143,
                 "smtp_submission_port": 587,
                 "mailbox_count": len(normalized_mailboxes),
             },
