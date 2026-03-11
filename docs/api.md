@@ -46,6 +46,10 @@ FastAPI exposes OpenAPI docs at:
 - `enabled: false` -> marks service disabled and stops the container when running
 - `enabled: true` -> marks service enabled and starts the container when it is in a stopped state
 
+Current service catalog includes foundational placeholders for future mail management:
+- `mailserver` (SMTP/IMAP)
+- `webmail` (mailbox web UI)
+
 ### Docker manager
 
 - `GET /api/v1/docker/host`

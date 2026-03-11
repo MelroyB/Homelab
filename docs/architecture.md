@@ -11,7 +11,7 @@ This project is a single-node control plane for homelab infra services with a mi
 - `apps/backend`
   - API, auth, service orchestration, config lifecycle, audit, backup/restore
 - `infra/`
-  - Runtime infra service baseline configs (Caddy, dnsmasq, BIND9, NTP)
+  - Runtime infra service baseline configs (Caddy, dnsmasq, BIND9, NTP, mail stack)
 - `docs/`
   - Engineering and operational documentation
 
@@ -52,6 +52,23 @@ This project is a single-node control plane for homelab infra services with a mi
   - optional `use_letsencrypt_staging` for safe test issuance
 - In non-TLS mode, `auto_https_disable_redirects` can keep HTTP-only behavior for local/Synology setups.
 
+## Mail platform target model (planned)
+
+- Managed services:
+  - `mailserver` (SMTP/Submission + IMAP)
+  - `webmail` (mailbox web interface)
+- Security/auth records:
+  - SPF TXT policy generated from configured outbound topology
+  - DKIM selector/key generation and DNS publish guidance
+  - DMARC policy templates with aggregate report address support
+- Mailbox lifecycle:
+  - create mailbox
+  - set/reset credentials
+  - disable mailbox
+  - alias management
+- DNS coupling:
+  - `MX`, `A/AAAA`, `SPF`, `DKIM`, and `DMARC` records should be generated/validated through the DNS management flow.
+
 ## Primary interfaces
 
 - `ServiceAdapter`
@@ -89,12 +106,15 @@ flowchart LR
   Backend --> Dnsmasq[dnsmasq DNS/DHCP]
   Backend --> Bind9[BIND9 Authoritative DNS]
   Backend --> Ntp[NTP Service]
+  Backend --> MailServer[Mail Server SMTP/IMAP]
+  Backend --> Webmail[Webmail UI]
   Backend --> Caddy
 
   Backend --> RuntimeConfigs[(Mounted Runtime Configs)]
   RuntimeConfigs --> Dnsmasq
   RuntimeConfigs --> Bind9
   RuntimeConfigs --> Ntp
+  RuntimeConfigs --> MailServer
 ```
 
 ## Deployment topology
@@ -113,6 +133,7 @@ These core homelab capabilities are not yet integrated as first-class managed se
 - SSO gateway/IdP layer (`Authelia` / `Authentik`)
 - offsite backup target (`MinIO` / S3-compatible)
 - UPS/power orchestration (`NUT`)
+- managed mail platform (SMTP/IMAP + mailbox lifecycle + webmail)
 
 ## Future Kubernetes migration path
 

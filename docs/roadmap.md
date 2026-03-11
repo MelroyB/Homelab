@@ -63,6 +63,15 @@
 - [ ] backup target service for offsite copies (MinIO/S3-compatible)
 - [ ] power event and graceful shutdown management (NUT/UPS tooling)
 
+### Phase 7: mail platform (planned)
+
+- [ ] Managed mail stack deployment (SMTP/IMAP + webmail)
+- [ ] DKIM key generation and rotation flow
+- [ ] SPF and DMARC policy helper with DNS record generation
+- [ ] Mailbox CRUD (create, disable, reset password, aliases)
+- [ ] Webmail integration (single sign-on/session handoff optional)
+- [ ] Deliverability and abuse controls (rDNS, rate limits, fail2ban, spam policy)
+
 ## Milestones
 
 1. M1: Secure bootstrap + auth + dashboard baseline (done)
@@ -70,6 +79,7 @@
 3. M3: NTP + monitoring + log quality improvements (in progress)
 4. M4: Disaster recovery hardening (planned)
 5. M5: Multi-user/RBAC/OIDC + extensibility model (planned)
+6. M6: Mail platform with mailbox management and webmail (planned)
 
 ## Completed foundation work
 
@@ -78,6 +88,7 @@
 - Caddy guided flow supports Let's Encrypt domains/email/staging controls.
 - Unified Settings-based Network Stack flow shipped (DNS + DHCP + NTP together).
 - Unified Settings-based service toggles shipped (disable stops containers; re-enable starts before apply).
+- Mail service placeholders are registered in managed services (`mailserver`, `webmail`) for lifecycle control and visibility.
 - DHCP scope options, reservations, and live lease visibility shipped.
 - Manual DNS record management shipped in Settings (with common record type presets).
 - Custom authoritative BIND zone list shipped via Settings (`authoritative_domains`).
@@ -101,6 +112,9 @@
 15. Add OIDC auth provider integration
 16. Add plugin discovery and adapter loading
 17. Add UPS/power orchestration (NUT) for graceful shutdown paths
+18. Add managed mail stack (SMTP/IMAP + webmail + mailbox CRUD)
+19. Add DKIM/SPF/DMARC guided policy and DNS publishing helper
+20. Add mailbox observability (queue, delivery failures, reputation checks)
 
 ## Risks and mitigations
 
@@ -119,6 +133,7 @@
 - Docker Engine available on host
 - Services can be controlled through Compose-managed containers
 - Local network allows required DHCP/DNS/NTP ports
+- Public DNS and port-forwarding are available for external mail delivery (SMTP 25 + submission/IMAP as required)
 
 ## Out of scope (v1)
 

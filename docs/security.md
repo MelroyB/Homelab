@@ -34,3 +34,4 @@
 - per-user RBAC permissions beyond admin role
 - encrypted backups at rest (key management)
 - signed config change approvals
+- mail-specific hardening baseline (DKIM key rotation, SPF/DMARC policy guardrails, SMTP abuse controls)

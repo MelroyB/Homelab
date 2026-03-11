@@ -102,6 +102,22 @@ class NtpValidator(ConfigValidator):
         return (len(errors) == 0, errors)
 
 
+class MailserverValidator(ConfigValidator):
+    def validate(self, service: ManagedService, rendered_config: str) -> tuple[bool, list[str]]:
+        errors: list[str] = []
+        if "DOMAINNAME=" not in rendered_config:
+            errors.append("Mail server config should include DOMAINNAME")
+        if "POSTMASTER_ADDRESS=" not in rendered_config:
+            errors.append("Mail server config should include POSTMASTER_ADDRESS")
+        if "DKIM_SELECTOR=" not in rendered_config:
+            errors.append("Mail server config should include DKIM_SELECTOR")
+        if "SPF_POLICY=" not in rendered_config:
+            errors.append("Mail server config should include SPF_POLICY")
+        if "DMARC_POLICY=" not in rendered_config:
+            errors.append("Mail server config should include DMARC_POLICY")
+        return (len(errors) == 0, errors)
+
+
 class DockerServiceController(ServiceController):
     def __init__(self, docker_gateway: DockerGateway) -> None:
         self.docker_gateway = docker_gateway
@@ -133,6 +149,8 @@ def build_adapter(service: ManagedService, docker_gateway: DockerGateway) -> Ser
         validator = Bind9Validator()
     elif service.slug == "ntp":
         validator = NtpValidator()
+    elif service.slug == "mailserver":
+        validator = MailserverValidator()
 
     return ServiceAdapter(
         renderer=TemplateRenderer(),

@@ -23,6 +23,8 @@ def test_list_services(client):
     data = response.json()
     assert isinstance(data, list)
     assert any(item["slug"] == "dnsmasq" for item in data)
+    assert any(item["slug"] == "mailserver" for item in data)
+    assert any(item["slug"] == "webmail" for item in data)
 
 
 def test_service_enable_toggle(client):
