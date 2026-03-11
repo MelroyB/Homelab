@@ -41,6 +41,17 @@ This project is a single-node control plane for homelab infra services with a mi
 - DHCP lease visibility is read from `dnsmasq.leases` under `data_dir/state/dnsmasq/`.
 - Every combined apply is audited as a single `network_stack_apply` action with per-service results.
 
+## Ingress TLS flow
+
+- Caddy remains the reverse proxy/ingress service.
+- The guided Caddy form supports automatic Let's Encrypt certificate issuance.
+- TLS mode is enabled through:
+  - `enable_https`
+  - `site_addresses` (domain names served by Caddy)
+  - `tls_email` (ACME contact)
+  - optional `use_letsencrypt_staging` for safe test issuance
+- In non-TLS mode, `auto_https_disable_redirects` can keep HTTP-only behavior for local/Synology setups.
+
 ## Primary interfaces
 
 - `ServiceAdapter`

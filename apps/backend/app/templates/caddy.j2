@@ -1,11 +1,23 @@
 {
     admin off
-{% if config.get('auto_https_disable_redirects', True) %}
+{% set tls_enabled = config.get('enable_https', False) and config.get('site_addresses', []) %}
+{% if tls_enabled and config.get('tls_email', '') %}
+    email {{ config.get('tls_email') }}
+{% endif %}
+{% if tls_enabled and config.get('use_letsencrypt_staging', False) %}
+    acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+{% endif %}
+{% if not tls_enabled and config.get('auto_https_disable_redirects', True) %}
     auto_https disable_redirects
 {% endif %}
 }
 
+{% set addresses = config.get('site_addresses', []) %}
+{% if addresses %}
+{{ addresses | join(', ') }} {
+{% else %}
 :{{ config.get('listen_port', 80) }} {
+{% endif %}
 {% if config.get('enable_gzip', True) %}
     encode gzip
 {% endif %}

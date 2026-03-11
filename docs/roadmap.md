@@ -27,6 +27,7 @@
 
 - [x] dnsmasq and BIND schema-driven forms
 - [x] Guided Caddy form in Service Detail UI
+- [x] Let's Encrypt certificate issuance controls in guided Caddy form
 - [x] Unified Network Stack profile apply for DNS + DHCP + NTP
 - [x] DHCP leases view and DHCP reservations management in Settings UI
 - [x] Manual DNS records management in Settings UI (`A`, `AAAA`, `CNAME`, `TXT`, `MX`, `NS`, `SRV`, `PTR`, `CAA`, `NAPTR`, `SPF`, `TLSA`, `LOC`, ...)
@@ -65,6 +66,7 @@
 
 - Alembic migration baseline integrated; backend startup no longer uses runtime `create_all`.
 - Guided service config forms shipped for Caddy, dnsmasq, BIND9, and NTP.
+- Caddy guided flow supports Let's Encrypt domains/email/staging controls.
 - Unified Settings-based Network Stack flow shipped (DNS + DHCP + NTP together).
 - DHCP scope options, reservations, and live lease visibility shipped.
 - Manual DNS record management shipped in Settings (with common record type presets).
@@ -79,11 +81,12 @@
 5. Add optimistic locking for concurrent config edits
 6. Add diff viewer for config versions
 7. Add dependency-aware service restart ordering
-8. Add scheduled backups and retention policy
-9. Add backup encryption and offsite replication
-10. Add WebSocket live status/streamed logs
-11. Add OIDC auth provider integration
-12. Add plugin discovery and adapter loading
+8. Add TLS certificate expiry/renewal visibility and diagnostics in UI
+9. Add scheduled backups and retention policy
+10. Add backup encryption and offsite replication
+11. Add WebSocket live status/streamed logs
+12. Add OIDC auth provider integration
+13. Add plugin discovery and adapter loading
 
 ## Risks and mitigations
 
@@ -108,7 +111,7 @@
 - Multi-node orchestration
 - Full enterprise RBAC matrix
 - External secret manager integration
-- Automatic cert management for all domains
+- Multi-provider certificate automation beyond Caddy's built-in ACME flow
 
 ## Future enhancements
 

@@ -12,6 +12,7 @@
 - [x] Add schema-driven forms for dnsmasq and BIND9 in Service Detail UI
 - [x] Add NTP configuration form + validation flow in Service Detail UI
 - [x] Add guided Caddy configuration form in Service Detail UI
+- [x] Add Let's Encrypt TLS settings in Caddy guided form (domains/email/staging)
 - [x] Add unified Network Stack flow (DNS + DHCP + NTP) in Settings
 - [x] Add DHCP leases visibility in Settings
 - [x] Add DHCP scope options and reservation management in Settings
@@ -19,6 +20,7 @@
 - [x] Add custom authoritative domains list for BIND nameserver zones in Settings
 - [ ] Add DNS record-type specific validation/hints (A/AAAA IP validation, MX priority, SRV structure)
 - [ ] Add per-domain DNS record sets and SOA/NS defaults for multi-zone operation
+- [ ] Add TLS certificate expiry status and renewal diagnostics in UI
 - [ ] Add API pagination and filtering for audit and logs
 - [ ] Add config diff endpoint and frontend visual diff
 - [ ] Add scheduled and retained backups

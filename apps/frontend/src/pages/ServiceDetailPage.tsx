@@ -26,6 +26,10 @@ type CaddyFormState = {
   frontendUpstream: string;
   enableGzip: boolean;
   autoHttpsDisableRedirects: boolean;
+  enableHttps: boolean;
+  siteAddresses: string;
+  tlsEmail: string;
+  useLetsencryptStaging: boolean;
 };
 
 type DnsmasqFormState = {
@@ -77,7 +81,11 @@ const DEFAULT_CADDY_FORM: CaddyFormState = {
   backendUpstream: "backend:8000",
   frontendUpstream: "frontend:4173",
   enableGzip: true,
-  autoHttpsDisableRedirects: true
+  autoHttpsDisableRedirects: true,
+  enableHttps: false,
+  siteAddresses: "",
+  tlsEmail: "",
+  useLetsencryptStaging: false
 };
 
 const DEFAULT_DNSMASQ_FORM: DnsmasqFormState = {
@@ -180,17 +188,26 @@ function caddyConfigToForm(
       safe,
       "auto_https_disable_redirects",
       true
-    )
+    ),
+    enableHttps: readBoolean(safe, "enable_https", false),
+    siteAddresses: readStringArray(safe, "site_addresses", []).join("\n"),
+    tlsEmail: readString(safe, "tls_email", ""),
+    useLetsencryptStaging: readBoolean(safe, "use_letsencrypt_staging", false)
   };
 }
 
 function caddyFormToConfig(form: CaddyFormState): Record<string, unknown> {
+  const siteAddresses = form.enableHttps ? splitMultiline(form.siteAddresses) : [];
   return {
     listen_port: form.listenPort,
     backend_upstream: form.backendUpstream.trim(),
     frontend_upstream: form.frontendUpstream.trim(),
     enable_gzip: form.enableGzip,
-    auto_https_disable_redirects: form.autoHttpsDisableRedirects
+    auto_https_disable_redirects: form.autoHttpsDisableRedirects,
+    enable_https: form.enableHttps,
+    site_addresses: siteAddresses,
+    tls_email: form.enableHttps ? form.tlsEmail.trim() : "",
+    use_letsencrypt_staging: form.useLetsencryptStaging
   };
 }
 
@@ -203,6 +220,21 @@ function validateCaddyForm(form: CaddyFormState): string | null {
   }
   if (!form.frontendUpstream.trim()) {
     return "Frontend upstream is verplicht.";
+  }
+  if (form.enableHttps) {
+    const addresses = splitMultiline(form.siteAddresses);
+    if (addresses.length === 0) {
+      return "Voeg minimaal 1 domein toe voor Let's Encrypt TLS.";
+    }
+    const invalid = addresses.find(
+      (item) => item.startsWith(":") || item.includes("/") || /\s/.test(item)
+    );
+    if (invalid) {
+      return `Ongeldig domein/adres voor TLS: ${invalid}`;
+    }
+    if (!form.tlsEmail.trim()) {
+      return "Contact e-mail is verplicht voor Let's Encrypt.";
+    }
   }
   return null;
 }
@@ -665,6 +697,67 @@ export function ServiceDetailPage() {
               <label>
                 <input
                   type="checkbox"
+                  checked={caddyForm.enableHttps}
+                  onChange={(e) =>
+                    setCaddyForm((prev) => ({
+                      ...prev,
+                      enableHttps: e.target.checked
+                    }))
+                  }
+                />
+                Let&apos;s Encrypt TLS inschakelen
+              </label>
+
+              <label>
+                Domeinen voor certificaat (1 per regel)
+                <textarea
+                  rows={4}
+                  value={caddyForm.siteAddresses}
+                  onChange={(e) =>
+                    setCaddyForm((prev) => ({
+                      ...prev,
+                      siteAddresses: e.target.value
+                    }))
+                  }
+                  placeholder={"example.com\nwww.example.com"}
+                />
+              </label>
+
+              <label>
+                Let&apos;s Encrypt contact e-mail
+                <input
+                  value={caddyForm.tlsEmail}
+                  onChange={(e) =>
+                    setCaddyForm((prev) => ({
+                      ...prev,
+                      tlsEmail: e.target.value
+                    }))
+                  }
+                  placeholder="admin@example.com"
+                />
+              </label>
+
+              <label>
+                <input
+                  type="checkbox"
+                  checked={caddyForm.useLetsencryptStaging}
+                  onChange={(e) =>
+                    setCaddyForm((prev) => ({
+                      ...prev,
+                      useLetsencryptStaging: e.target.checked
+                    }))
+                  }
+                />
+                Gebruik Let&apos;s Encrypt staging (testmodus)
+              </label>
+              <p>
+                Voor productiecertificaten moeten poort 80 en 443 publiek het
+                domein bereiken.
+              </p>
+
+              <label>
+                <input
+                  type="checkbox"
                   checked={caddyForm.enableGzip}
                   onChange={(e) =>
                     setCaddyForm((prev) => ({
@@ -680,6 +773,7 @@ export function ServiceDetailPage() {
                 <input
                   type="checkbox"
                   checked={caddyForm.autoHttpsDisableRedirects}
+                  disabled={caddyForm.enableHttps}
                   onChange={(e) =>
                     setCaddyForm((prev) => ({
                       ...prev,
@@ -687,7 +781,7 @@ export function ServiceDetailPage() {
                     }))
                   }
                 />
-                HTTPS redirects uitschakelen (Synology/NAT setup)
+                HTTPS redirects uitschakelen (alleen zonder TLS-modus)
               </label>
             </>
           ) : configMode === "dnsmasq" ? (
