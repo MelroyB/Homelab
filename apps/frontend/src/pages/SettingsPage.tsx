@@ -3,12 +3,14 @@ import {
   applyMailStackProfile,
   applyNetworkStackProfile,
   getDhcpLeases,
+  getMailDnsSuggestions,
   getMailStackProfile,
   getNetworkStackProfile,
   getWebmailUrl
 } from "../api/settings";
 import {
   DnsRecord,
+  MailSetupIssue,
   DhcpLeaseEntry,
   DhcpReservation,
   MailboxEntry,
@@ -72,6 +74,7 @@ export function SettingsPage() {
   const [mailSuggestedDnsRecords, setMailSuggestedDnsRecords] = useState<
     DnsRecord[]
   >([]);
+  const [mailSetupIssues, setMailSetupIssues] = useState<MailSetupIssue[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
   const [mailError, setMailError] = useState<string | null>(null);
@@ -313,8 +316,61 @@ export function SettingsPage() {
     }
   };
 
-  const onApplyMail = async () => {
+  const buildMailPayload = (): MailStackProfile | null => {
     if (!mailProfile) {
+      return null;
+    }
+    return {
+      ...mailProfile,
+      domain: normalizeDomain(mailProfile.domain),
+      hostname: mailProfile.hostname.trim().toLowerCase(),
+      webmail_url: mailProfile.webmail_url?.trim() || null,
+      postmaster_address: mailProfile.postmaster_address.trim().toLowerCase(),
+      dkim_selector: mailProfile.dkim_selector.trim().toLowerCase(),
+      dkim_public_key: mailProfile.dkim_public_key?.trim() || null,
+      spf_policy: mailProfile.spf_policy.trim(),
+      dmarc_policy: mailProfile.dmarc_policy.trim(),
+      mailboxes: (mailProfile.mailboxes ?? []).map((item) => ({
+        email: item.email.trim().toLowerCase(),
+        password: item.password?.trim() || null,
+        has_password: item.has_password,
+        display_name: item.display_name?.trim() || null,
+        quota_mb: item.quota_mb,
+        enabled: item.enabled,
+        aliases: (item.aliases ?? [])
+          .map((alias) => alias.trim().toLowerCase())
+          .filter((alias) => alias.length > 0)
+      }))
+    };
+  };
+
+  const onPreviewMailDns = async () => {
+    const payload = buildMailPayload();
+    if (!payload) {
+      return;
+    }
+
+    setMailError(null);
+    setMailResult(null);
+    try {
+      const response = await getMailDnsSuggestions(payload);
+      setMailSuggestedDnsRecords(response.records);
+      setMailSetupIssues(response.issues);
+      setMailResult(
+        response.valid
+          ? "Mail DNS setup validatie is geslaagd."
+          : "Mail DNS setup bevat fouten of waarschuwingen."
+      );
+    } catch (err) {
+      setMailError(
+        err instanceof Error ? err.message : "Mail DNS setup check mislukt"
+      );
+    }
+  };
+
+  const onApplyMail = async () => {
+    const payload = buildMailPayload();
+    if (!payload) {
       return;
     }
 
@@ -322,60 +378,20 @@ export function SettingsPage() {
     setMailResult(null);
     setMailResults([]);
     setMailSuggestedDnsRecords([]);
-
-    const domain = normalizeDomain(mailProfile.domain);
-    if (!domain.includes(".")) {
-      setMailError("Gebruik een geldig maildomein zoals example.com.");
-      return;
-    }
-    const postmasterAddress = mailProfile.postmaster_address
-      .trim()
-      .toLowerCase();
-    if (!postmasterAddress.includes("@")) {
-      setMailError("Postmaster e-mailadres is verplicht.");
-      return;
-    }
-
-    const mailboxes = (mailProfile.mailboxes ?? []).map((item) => ({
-      email: item.email.trim().toLowerCase(),
-      password: item.password?.trim() || null,
-      has_password: item.has_password,
-      display_name: item.display_name?.trim() || null,
-      quota_mb: item.quota_mb,
-      enabled: item.enabled,
-      aliases: (item.aliases ?? [])
-        .map((alias) => alias.trim().toLowerCase())
-        .filter((alias) => alias.length > 0)
-    }));
-
-    for (const mailbox of mailboxes) {
-      if (!mailbox.email) {
-        setMailError("Elke mailbox moet een e-mailadres hebben.");
-        return;
-      }
-      if (!mailbox.email.endsWith(`@${domain}`)) {
-        setMailError(`Mailbox ${mailbox.email} moet eindigen op @${domain}.`);
-        return;
-      }
-      if (!mailbox.password && !mailbox.has_password) {
-        setMailError(`Mailbox ${mailbox.email} heeft een wachtwoord nodig.`);
-        return;
-      }
-    }
+    setMailSetupIssues([]);
 
     try {
-      const response = await applyMailStackProfile({
-        ...mailProfile,
-        domain,
-        hostname: mailProfile.hostname.trim().toLowerCase(),
-        webmail_url: mailProfile.webmail_url?.trim() || null,
-        postmaster_address: postmasterAddress,
-        dkim_selector: mailProfile.dkim_selector.trim().toLowerCase(),
-        dkim_public_key: mailProfile.dkim_public_key?.trim() || null,
-        spf_policy: mailProfile.spf_policy.trim(),
-        dmarc_policy: mailProfile.dmarc_policy.trim(),
-        mailboxes
-      });
+      const preview = await getMailDnsSuggestions(payload);
+      setMailSuggestedDnsRecords(preview.records);
+      setMailSetupIssues(preview.issues);
+      if (!preview.valid) {
+        setMailError(
+          "Mail setup bevat fouten. Los eerst de fouten op in de setup check."
+        );
+        return;
+      }
+
+      const response = await applyMailStackProfile(payload);
       setMailResults(response.results);
       setMailSuggestedDnsRecords(response.suggested_dns_records);
       setMailResult(
@@ -985,9 +1001,14 @@ export function SettingsPage() {
 
       <div className="page-header">
         <h2>Mail Platform</h2>
-        <button className="btn" onClick={onApplyMail}>
-          Apply Mail Server + Webmail
-        </button>
+        <div style={{ display: "flex", gap: "0.75rem" }}>
+          <button className="btn btn-secondary" onClick={onPreviewMailDns}>
+            Check DNS setup
+          </button>
+          <button className="btn" onClick={onApplyMail}>
+            Apply Mail Server + Webmail
+          </button>
+        </div>
       </div>
 
       <div className="card">
@@ -1310,9 +1331,45 @@ export function SettingsPage() {
             </table>
           )}
 
+          <h3>Mail Setup Check</h3>
+          {mailSetupIssues.length === 0 ? (
+            <p>Nog geen setup-check uitgevoerd.</p>
+          ) : (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Level</th>
+                  <th>Field</th>
+                  <th>Message</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mailSetupIssues.map((issue, index) => (
+                  <tr key={`mail-issue-${index}-${issue.field}`}>
+                    <td>
+                      <span
+                        className={
+                          issue.level === "error"
+                            ? "badge badge-err"
+                            : "badge badge-warn"
+                        }
+                      >
+                        {issue.level}
+                      </span>
+                    </td>
+                    <td>{issue.field}</td>
+                    <td>{issue.message}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
           <h3>Aanbevolen DNS records</h3>
           {mailSuggestedDnsRecords.length === 0 ? (
-            <p>Voer een mail apply uit om DKIM/SPF/DMARC records te tonen.</p>
+            <p>
+              Voer een DNS setup-check of mail apply uit om records te tonen.
+            </p>
           ) : (
             <table className="table">
               <thead>

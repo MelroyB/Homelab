@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -100,6 +101,18 @@ class MailStackApplyResponse(BaseModel):
     success: bool
     results: list[NetworkServiceApplyResult] = Field(default_factory=list)
     suggested_dns_records: list[DnsRecord] = Field(default_factory=list)
+
+
+class MailSetupIssue(BaseModel):
+    level: Literal["error", "warning"]
+    field: str
+    message: str
+
+
+class MailDnsSuggestionsResponse(BaseModel):
+    valid: bool
+    records: list[DnsRecord] = Field(default_factory=list)
+    issues: list[MailSetupIssue] = Field(default_factory=list)
 
 
 class DhcpLeaseEntry(BaseModel):

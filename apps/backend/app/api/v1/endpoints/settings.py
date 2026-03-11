@@ -4,8 +4,10 @@ import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from passlib.hash import sha512_crypt
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -27,6 +29,8 @@ from app.schemas.settings import (
     DhcpReservation,
     DnsRecord,
     MailboxEntry,
+    MailDnsSuggestionsResponse,
+    MailSetupIssue,
     MailStackApplyResponse,
     MailStackProfile,
     NetworkServiceApplyResult,
@@ -42,6 +46,8 @@ router = APIRouter()
 DOMAIN_PATTERN = re.compile(
     r"^(?=.{1,253}$)(?!-)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.(?!-)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$"
 )
+HOST_LABEL_PATTERN = re.compile(r"^(?!-)[a-z0-9-]{1,63}(?<!-)$")
+DKIM_PUBLIC_KEY_PATTERN = re.compile(r"^[A-Za-z0-9+/=]+$")
 
 
 @router.get("/profile")
@@ -303,6 +309,221 @@ def _suggest_mail_dns_records(payload: MailStackProfile) -> list[DnsRecord]:
     ]
 
 
+def _mail_setup_issues(payload: MailStackProfile) -> list[MailSetupIssue]:
+    issues: list[MailSetupIssue] = []
+    domain = _normalize_domain(payload.domain)
+
+    if not domain or not DOMAIN_PATTERN.fullmatch(domain):
+        issues.append(
+            MailSetupIssue(
+                level="error",
+                field="domain",
+                message="Mail domain is invalid. Use a valid fqdn like example.com.",
+            )
+        )
+
+    hostname = payload.hostname.strip().lower()
+    if not hostname:
+        issues.append(
+            MailSetupIssue(
+                level="error",
+                field="hostname",
+                message="Mail hostname is required.",
+            )
+        )
+    elif not HOST_LABEL_PATTERN.fullmatch(hostname):
+        issues.append(
+            MailSetupIssue(
+                level="error",
+                field="hostname",
+                message="Mail hostname must be a single DNS label (letters, numbers, hyphen).",
+            )
+        )
+
+    postmaster_address = payload.postmaster_address.strip().lower()
+    if "@" not in postmaster_address:
+        issues.append(
+            MailSetupIssue(
+                level="error",
+                field="postmaster_address",
+                message="Postmaster address must contain '@'.",
+            )
+        )
+    elif domain and postmaster_address.split("@", 1)[1] != domain:
+        issues.append(
+            MailSetupIssue(
+                level="warning",
+                field="postmaster_address",
+                message=f"Postmaster domain does not match configured mail domain ({domain}).",
+            )
+        )
+
+    if payload.dkim_key_size < 1024 or payload.dkim_key_size > 4096:
+        issues.append(
+            MailSetupIssue(
+                level="error",
+                field="dkim_key_size",
+                message="DKIM key size must be between 1024 and 4096.",
+            )
+        )
+
+    dkim_selector = payload.dkim_selector.strip().lower()
+    if not dkim_selector or not HOST_LABEL_PATTERN.fullmatch(dkim_selector):
+        issues.append(
+            MailSetupIssue(
+                level="error",
+                field="dkim_selector",
+                message="DKIM selector must be a DNS-safe label (for example: mail).",
+            )
+        )
+
+    dkim_public_key_raw = (payload.dkim_public_key or "").strip()
+    if dkim_public_key_raw:
+        dkim_public_key = "".join(dkim_public_key_raw.split())
+        if not DKIM_PUBLIC_KEY_PATTERN.fullmatch(dkim_public_key):
+            issues.append(
+                MailSetupIssue(
+                    level="error",
+                    field="dkim_public_key",
+                    message="DKIM public key contains unsupported characters.",
+                )
+            )
+        elif len(dkim_public_key) < 128:
+            issues.append(
+                MailSetupIssue(
+                    level="warning",
+                    field="dkim_public_key",
+                    message="DKIM public key looks unusually short. Verify key length.",
+                )
+            )
+    else:
+        issues.append(
+            MailSetupIssue(
+                level="warning",
+                field="dkim_public_key",
+                message="DKIM public key is empty. The DNS helper will output a placeholder value.",
+            )
+        )
+
+    spf_policy = payload.spf_policy.strip()
+    if not spf_policy.lower().startswith("v=spf1"):
+        issues.append(
+            MailSetupIssue(
+                level="error",
+                field="spf_policy",
+                message="SPF policy must start with 'v=spf1'.",
+            )
+        )
+    elif all(marker not in spf_policy for marker in [" -all", " ~all", " ?all", " +all"]):
+        issues.append(
+            MailSetupIssue(
+                level="warning",
+                field="spf_policy",
+                message="SPF policy has no explicit all-mechanism qualifier (-all/~all/?all/+all).",
+            )
+        )
+
+    dmarc_policy = payload.dmarc_policy.strip()
+    if not dmarc_policy.upper().startswith("V=DMARC1"):
+        issues.append(
+            MailSetupIssue(
+                level="error",
+                field="dmarc_policy",
+                message="DMARC policy must start with 'v=DMARC1'.",
+            )
+        )
+    elif "p=" not in dmarc_policy.lower():
+        issues.append(
+            MailSetupIssue(
+                level="error",
+                field="dmarc_policy",
+                message="DMARC policy must contain a p= action (none/quarantine/reject).",
+            )
+        )
+
+    webmail_url = (payload.webmail_url or "").strip()
+    if payload.enable_webmail and webmail_url:
+        parsed = urlparse(webmail_url)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            issues.append(
+                MailSetupIssue(
+                    level="error",
+                    field="webmail_url",
+                    message="Webmail URL must be a valid http(s) URL.",
+                )
+            )
+
+    mailbox_emails: set[str] = set()
+    enabled_mailboxes = 0
+    for mailbox in payload.mailboxes:
+        email = mailbox.email.strip().lower()
+        if not email:
+            issues.append(
+                MailSetupIssue(
+                    level="error",
+                    field="mailboxes",
+                    message="Mailbox email cannot be empty.",
+                )
+            )
+            continue
+        if email in mailbox_emails:
+            issues.append(
+                MailSetupIssue(
+                    level="error",
+                    field="mailboxes",
+                    message=f"Mailbox email duplicated: {email}",
+                )
+            )
+            continue
+        mailbox_emails.add(email)
+        if domain and not email.endswith(f"@{domain}"):
+            issues.append(
+                MailSetupIssue(
+                    level="error",
+                    field="mailboxes",
+                    message=f"Mailbox must match mail domain {domain}: {email}",
+                )
+            )
+        if mailbox.enabled:
+            enabled_mailboxes += 1
+            if not (mailbox.password or "").strip() and not mailbox.has_password:
+                issues.append(
+                    MailSetupIssue(
+                        level="error",
+                        field="mailboxes",
+                        message=f"Mailbox {email} requires a password.",
+                    )
+                )
+
+    if payload.enable_mailserver and enabled_mailboxes == 0:
+        issues.append(
+            MailSetupIssue(
+                level="warning",
+                field="mailboxes",
+                message="No enabled mailboxes configured while mailserver is enabled.",
+            )
+        )
+
+    if not any(
+        [
+            payload.enable_imap,
+            payload.enable_pop3,
+            payload.enable_submission,
+            payload.enable_submissions,
+            payload.enable_smtps,
+        ]
+    ):
+        issues.append(
+            MailSetupIssue(
+                level="warning",
+                field="protocols",
+                message="All mail protocols are disabled; clients cannot connect.",
+            )
+        )
+
+    return issues
+
+
 def _write_mail_runtime_files(
     settings: Settings,
     *,
@@ -316,8 +537,11 @@ def _write_mail_runtime_files(
     accounts_path = config_dir / "accounts.cf"
     aliases_path = config_dir / "aliases.cf"
     manifest_path = config_dir / "mailboxes.json"
+    dms_accounts_path = config_dir / "postfix-accounts.cf"
+    dms_virtual_path = config_dir / "postfix-virtual.cf"
 
     accounts_lines: list[str] = []
+    dms_accounts_lines: list[str] = []
     alias_lines: list[str] = []
     for mailbox in mailboxes:
         email = str(mailbox.get("email", "")).strip().lower()
@@ -325,6 +549,7 @@ def _write_mail_runtime_files(
         enabled = bool(mailbox.get("enabled", True))
         if email and password and enabled:
             accounts_lines.append(f"{email}|{password}")
+            dms_accounts_lines.append(f"{email}|{{SHA512-CRYPT}}{sha512_crypt.hash(password)}")
 
         aliases = mailbox.get("aliases", [])
         if isinstance(aliases, list):
@@ -339,9 +564,12 @@ def _write_mail_runtime_files(
             alias_lines.append(f"postmaster@{domain}|{postmaster_address}")
 
     accounts_text = ("\n".join(accounts_lines) + "\n") if accounts_lines else ""
+    dms_accounts_text = ("\n".join(dms_accounts_lines) + "\n") if dms_accounts_lines else ""
     aliases_text = ("\n".join(alias_lines) + "\n") if alias_lines else ""
     accounts_path.write_text(accounts_text, encoding="utf-8")
+    dms_accounts_path.write_text(dms_accounts_text, encoding="utf-8")
     aliases_path.write_text(aliases_text, encoding="utf-8")
+    dms_virtual_path.write_text(aliases_text, encoding="utf-8")
     manifest_path.write_text(
         json.dumps({"domain": domain, "mailboxes": mailboxes}, indent=2),
         encoding="utf-8",
@@ -351,6 +579,8 @@ def _write_mail_runtime_files(
         "accounts_path": str(accounts_path),
         "aliases_path": str(aliases_path),
         "manifest_path": str(manifest_path),
+        "dms_accounts_path": str(dms_accounts_path),
+        "dms_virtual_path": str(dms_virtual_path),
     }
 
 
@@ -501,6 +731,17 @@ def mail_profile(
     )
 
 
+@router.post("/mail/dns/suggestions", response_model=MailDnsSuggestionsResponse)
+def mail_dns_suggestions(
+    payload: MailStackProfile,
+    _admin_user: User = Depends(require_admin),
+) -> MailDnsSuggestionsResponse:
+    issues = _mail_setup_issues(payload)
+    has_errors = any(issue.level == "error" for issue in issues)
+    records = [] if has_errors else _suggest_mail_dns_records(payload)
+    return MailDnsSuggestionsResponse(valid=not has_errors, records=records, issues=issues)
+
+
 @router.post("/mail/apply", response_model=MailStackApplyResponse)
 def apply_mail_profile(
     payload: MailStackProfile,
@@ -513,25 +754,16 @@ def apply_mail_profile(
     manager = ConfigManager(db, docker_gateway)
     lifecycle_manager = ServiceLifecycleManager(docker_gateway)
 
+    validation_issues = _mail_setup_issues(payload)
+    blocking_issues = [issue for issue in validation_issues if issue.level == "error"]
+    if blocking_issues:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=blocking_issues[0].message,
+        )
+
     domain = _normalize_domain(payload.domain)
-    if not domain or not DOMAIN_PATTERN.fullmatch(domain):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Mail domain is invalid. Use a valid fqdn like example.com.",
-        )
-
     postmaster_address = payload.postmaster_address.strip().lower()
-    if "@" not in postmaster_address:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Postmaster address must contain '@'.",
-        )
-    if payload.dkim_key_size < 1024 or payload.dkim_key_size > 4096:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="DKIM key size must be between 1024 and 4096.",
-        )
-
     existing_mail_cfg = _active_config_json(db, "mailserver")
     existing_mailboxes = _mailbox_list(existing_mail_cfg.get("mailboxes"))
     normalized_mailboxes = _normalize_mailboxes_for_storage(payload.mailboxes, existing_mailboxes)

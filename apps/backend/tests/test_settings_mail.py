@@ -55,6 +55,7 @@ def test_mail_profile_apply_with_mailbox(client):
     payload = {
         "domain": "example.com",
         "hostname": "mail",
+        "webmail_url": "https://webmail.example.com",
         "postmaster_address": "postmaster@example.com",
         "enable_mailserver": True,
         "enable_webmail": True,
@@ -79,6 +80,17 @@ def test_mail_profile_apply_with_mailbox(client):
             }
         ],
     }
+
+    suggestions_response = client.post(
+        "/api/v1/settings/mail/dns/suggestions",
+        json=payload,
+        headers=headers,
+    )
+    assert suggestions_response.status_code == 200
+    suggestions_payload = suggestions_response.json()
+    assert suggestions_payload["valid"] is True
+    assert isinstance(suggestions_payload.get("records"), list)
+    assert any(item.get("name") == "_dmarc" for item in suggestions_payload["records"])
 
     previous_data_dir = settings_singleton.data_dir
     data_dir = Path.cwd() / ".tmp" / "tests" / "mail"
@@ -105,12 +117,17 @@ def test_mail_profile_apply_with_mailbox(client):
     accounts_file = data_dir / "config" / "mailserver" / "accounts.cf"
     aliases_file = data_dir / "config" / "mailserver" / "aliases.cf"
     manifest_file = data_dir / "config" / "mailserver" / "mailboxes.json"
+    dms_accounts_file = data_dir / "config" / "mailserver" / "postfix-accounts.cf"
+    dms_virtual_file = data_dir / "config" / "mailserver" / "postfix-virtual.cf"
     assert accounts_file.exists()
     assert aliases_file.exists()
     assert manifest_file.exists()
+    assert dms_accounts_file.exists()
+    assert dms_virtual_file.exists()
     assert "admin@example.com|super-secret-mail-password" in accounts_file.read_text(
         encoding="utf-8"
     )
+    assert "{SHA512-CRYPT}" in dms_accounts_file.read_text(encoding="utf-8")
 
     profile_response = client.get("/api/v1/settings/mail/profile")
     assert profile_response.status_code == 200
@@ -128,3 +145,39 @@ def test_mail_profile_apply_with_mailbox(client):
     webmail_payload = webmail_response.json()
     assert webmail_payload["mailbox"] == "admin@example.com"
     assert isinstance(webmail_payload.get("url"), str)
+
+
+def test_mail_dns_suggestions_report_validation_errors(client):
+    csrf_token = _login(client)
+    headers = {"x-csrf-token": csrf_token}
+    response = client.post(
+        "/api/v1/settings/mail/dns/suggestions",
+        json={
+            "domain": "invalid_domain",
+            "hostname": "mail host",
+            "webmail_url": "not-a-url",
+            "postmaster_address": "postmasterexample.com",
+            "enable_mailserver": True,
+            "enable_webmail": True,
+            "enable_imap": True,
+            "enable_pop3": False,
+            "enable_submission": True,
+            "enable_submissions": True,
+            "enable_smtps": False,
+            "dkim_selector": "mail",
+            "dkim_key_size": 2048,
+            "dkim_public_key": "abc",
+            "spf_policy": "mx -all",
+            "dmarc_policy": "p=quarantine",
+            "mailboxes": [],
+        },
+        headers=headers,
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["valid"] is False
+    assert payload["records"] == []
+    assert any(
+        issue.get("field") == "domain" and issue.get("level") == "error"
+        for issue in payload.get("issues", [])
+    )

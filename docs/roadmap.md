@@ -68,9 +68,10 @@
 - [x] Managed mail settings baseline (service registry + profile/apply API + mailbox model)
 - [x] Mail runtime provisioning baseline (`accounts.cf`, `aliases.cf`, `mailboxes.json`)
 - [x] Webmail URL integration baseline (profile/apply + launch URL endpoint)
+- [x] Guided mail DNS setup baseline (`/settings/mail/dns/suggestions` with validation issues + record preview)
 - [ ] Managed mail stack deployment (SMTP/IMAP + webmail containers/runtime)
 - [ ] DKIM key generation and rotation flow
-- [ ] SPF and DMARC policy helper with DNS record generation
+- [x] SPF and DMARC policy helper with DNS record generation
 - [ ] Mailbox CRUD with runtime provisioning (create, disable, reset password, aliases)
 - [ ] Webmail integration (single sign-on/session handoff optional)
 - [ ] Deliverability and abuse controls (rDNS, rate limits, fail2ban, spam policy)
@@ -93,6 +94,7 @@
 - Unified Settings-based service toggles shipped (disable stops containers; re-enable starts before apply).
 - Mail service placeholders are registered in managed services (`mailserver`, `webmail`) for lifecycle control and visibility.
 - Mail settings API baseline shipped (`/settings/mail/profile`, `/settings/mail/apply`) including DKIM/SPF/DMARC fields and mailbox definitions.
+- Mail DNS setup-check endpoint shipped (`/settings/mail/dns/suggestions`) with validation feedback and record preview.
 - DHCP scope options, reservations, and live lease visibility shipped.
 - Manual DNS record management shipped in Settings (with common record type presets).
 - Custom authoritative BIND zone list shipped via Settings (`authoritative_domains`).

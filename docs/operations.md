@@ -48,13 +48,17 @@ make restart
 - Settings page includes a unified mail profile (`mailserver` + `webmail`).
 - API:
   - `GET /api/v1/settings/mail/profile`
+  - `POST /api/v1/settings/mail/dns/suggestions`
   - `POST /api/v1/settings/mail/apply`
   - `GET /api/v1/settings/mail/webmail/url`
+- Run `mail/dns/suggestions` first to validate domain/mailbox/DKIM/SPF/DMARC inputs before apply.
 - Apply response includes suggested DNS records for `MX`, `SPF`, `DMARC`, and `DKIM`.
 - Mail apply writes runtime provisioning files under `data_dir/config/mailserver/`:
   - `accounts.cf`
   - `aliases.cf`
   - `mailboxes.json`
+  - `postfix-accounts.cf` (`{SHA512-CRYPT}` hashed passwords)
+  - `postfix-virtual.cf`
 
 ## Health monitoring
 

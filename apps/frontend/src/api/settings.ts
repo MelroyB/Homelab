@@ -1,6 +1,7 @@
 import { apiRequest } from "./client";
 import {
   DhcpLeasesResponse,
+  MailDnsSuggestionsResponse,
   MailStackApplyResponse,
   MailStackProfile,
   NetworkStackApplyResponse,
@@ -36,6 +37,18 @@ export function applyMailStackProfile(
     method: "POST",
     body: JSON.stringify(profile)
   });
+}
+
+export function getMailDnsSuggestions(
+  profile: MailStackProfile
+): Promise<MailDnsSuggestionsResponse> {
+  return apiRequest<MailDnsSuggestionsResponse>(
+    "/settings/mail/dns/suggestions",
+    {
+      method: "POST",
+      body: JSON.stringify(profile)
+    }
+  );
 }
 
 export function getWebmailUrl(

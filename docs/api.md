@@ -78,6 +78,7 @@ Current service catalog includes foundational placeholders for future mail manag
 - `GET /api/v1/settings/network/dhcp/leases`
 - `POST /api/v1/settings/network/apply`
 - `GET /api/v1/settings/mail/profile`
+- `POST /api/v1/settings/mail/dns/suggestions`
 - `POST /api/v1/settings/mail/apply`
 - `GET /api/v1/settings/mail/webmail/url`
 
@@ -120,8 +121,12 @@ Apply behavior for each enabled flag:
 - `mailserver` + `webmail` enable/disable and apply in one flow
 - DKIM/SPF/DMARC profile fields
 - mailbox definitions (email, password, aliases, quota, enabled)
+- DNS setup check endpoint (`/settings/mail/dns/suggestions`) with blocking errors + warnings
 - DNS record suggestions for `MX`, `SPF`, `DMARC`, and `DKIM`
 - webmail launch URL resolution (optionally validated against a mailbox)
+- mail runtime provisioning files include both generic and Docker Mailserver-compatible formats:
+  - `accounts.cf`, `aliases.cf`, `mailboxes.json`
+  - `postfix-accounts.cf` (`{SHA512-CRYPT}` hashes), `postfix-virtual.cf`
 
 ## Error conventions
 

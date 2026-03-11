@@ -287,6 +287,18 @@ export interface MailStackApplyResponse {
   suggested_dns_records: DnsRecord[];
 }
 
+export interface MailSetupIssue {
+  level: "error" | "warning";
+  field: string;
+  message: string;
+}
+
+export interface MailDnsSuggestionsResponse {
+  valid: boolean;
+  records: DnsRecord[];
+  issues: MailSetupIssue[];
+}
+
 export interface WebmailUrlResponse {
   url: string;
   mailbox: string | null;
