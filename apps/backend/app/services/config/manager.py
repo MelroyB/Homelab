@@ -77,7 +77,10 @@ class ConfigManager:
         self._write_rendered_config(service.config_path, rendered)
         version.applied_at = datetime.now(timezone.utc)
 
-        if payload.auto_reload and service.supports_reload:
+        if not service.enabled:
+            version.apply_status = "applied"
+            version.apply_message = "Config written (service disabled; no runtime reload triggered)"
+        elif payload.auto_reload and service.supports_reload:
             ok, message = build_adapter(service, self.docker_gateway).controller.execute(
                 service, "reload"
             )

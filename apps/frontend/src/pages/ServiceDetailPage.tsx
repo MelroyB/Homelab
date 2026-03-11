@@ -5,6 +5,7 @@ import {
   getService,
   listConfigVersions,
   rollbackConfig,
+  setServiceEnabled,
   runServiceAction,
   validateConfig
 } from "../api/services";
@@ -555,6 +556,22 @@ export function ServiceDetailPage() {
     }
   };
 
+  const onSetEnabled = async (enabled: boolean) => {
+    setError(null);
+    setResult(null);
+    try {
+      const response = await setServiceEnabled(slug, enabled);
+      const warningSuffix =
+        response.warnings.length > 0 ? ` (warnings: ${response.warnings.join("; ")})` : "";
+      setResult(
+        `${enabled ? "enable" : "disable"}: ${response.message}${warningSuffix}`
+      );
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Enable/disable failed");
+    }
+  };
+
   const onValidate = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
@@ -629,16 +646,26 @@ export function ServiceDetailPage() {
       </div>
 
       <div className="action-row">
+        <button
+          className="btn"
+          onClick={() => onSetEnabled(!service.service.enabled)}
+        >
+          {service.service.enabled ? "Disable service" : "Enable service"}
+        </button>
         {ACTIONS.map((action) => (
           <button
             key={action}
             className="btn btn-secondary"
+            disabled={!service.service.enabled && action !== "stop"}
             onClick={() => onAction(action)}
           >
             {action}
           </button>
         ))}
       </div>
+      <p>
+        Managed enabled state: <strong>{service.service.enabled ? "enabled" : "disabled"}</strong>
+      </p>
 
       {error ? <div className="error">{error}</div> : null}
       {result ? <div className="success">{result}</div> : null}

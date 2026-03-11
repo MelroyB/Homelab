@@ -23,6 +23,10 @@ make restart
 
 - `POST /api/v1/services/{slug}/actions`
 - Supported: `start`, `stop`, `restart`, `reload` (if service allows)
+- `POST /api/v1/services/{slug}/enabled`
+- Generic lifecycle policy for all services (including future services):
+  - disable -> stop running container
+  - enable -> start container when currently stopped
 
 ## Config change workflow
 

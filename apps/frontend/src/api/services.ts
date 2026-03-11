@@ -6,6 +6,7 @@ import {
   DashboardOverview,
   ReadinessResponse,
   ServiceDetail,
+  ServiceEnableResponse,
   ServiceState
 } from "../types/api";
 
@@ -32,6 +33,13 @@ export function runServiceAction(
       body: JSON.stringify({ action })
     }
   );
+}
+
+export function setServiceEnabled(slug: string, enabled: boolean) {
+  return apiRequest<ServiceEnableResponse>(`/services/${slug}/enabled`, {
+    method: "POST",
+    body: JSON.stringify({ enabled })
+  });
 }
 
 export function listConfigVersions(slug: string): Promise<ConfigVersion[]> {

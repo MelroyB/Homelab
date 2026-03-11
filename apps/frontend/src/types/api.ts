@@ -53,6 +53,14 @@ export interface ServiceDetail {
   active_config: ConfigVersion | null;
 }
 
+export interface ServiceEnableResponse {
+  slug: string;
+  enabled: boolean;
+  status: string;
+  message: string;
+  warnings: string[];
+}
+
 export interface ConfigValidationResponse {
   valid: boolean;
   errors: string[];

@@ -17,12 +17,15 @@ from app.schemas.service import (
     ServiceActionRequest,
     ServiceActionResponse,
     ServiceDetailResponse,
+    ServiceEnableRequest,
+    ServiceEnableResponse,
     ServiceState,
 )
 from app.services.adapters.implementations import build_adapter
 from app.services.audit.service import AuditService
 from app.services.config.manager import ConfigManager
 from app.services.docker_gateway import DockerGateway
+from app.services.service_lifecycle import ServiceLifecycleManager
 from app.services.service_state import ServiceStateService
 
 router = APIRouter()
@@ -98,6 +101,45 @@ def service_action(
         action=payload.action,
         status="success" if ok else "failed",
         message=message,
+    )
+
+
+@router.post("/{slug}/enabled", response_model=ServiceEnableResponse)
+def service_enabled(
+    slug: str,
+    payload: ServiceEnableRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+    docker_gateway: DockerGateway = Depends(get_docker_gateway),
+) -> ServiceEnableResponse:
+    service = _service_or_404(db, slug)
+    lifecycle = ServiceLifecycleManager(docker_gateway)
+    lifecycle_result = lifecycle.reconcile_enabled(service=service, enabled=payload.enabled)
+
+    audit = AuditService(db)
+    audit.record(
+        actor_user_id=current_user.id,
+        action="service_enable" if payload.enabled else "service_disable",
+        resource_type="service",
+        resource_id=service.slug,
+        status="success" if lifecycle_result.status != "failed" else "failed",
+        ip_address=get_client_ip(request),
+        metadata_json={
+            "enabled": lifecycle_result.enabled,
+            "status": lifecycle_result.status,
+            "message": lifecycle_result.message,
+            "warnings": lifecycle_result.warnings,
+        },
+    )
+    db.commit()
+
+    return ServiceEnableResponse(
+        slug=service.slug,
+        enabled=lifecycle_result.enabled,
+        status=lifecycle_result.status,
+        message=lifecycle_result.message,
+        warnings=lifecycle_result.warnings,
     )
 
 

@@ -9,6 +9,7 @@
 
 ## Important
 
+- [x] Add generic per-service enable/disable lifecycle control (works for future services)
 - [x] Add schema-driven forms for dnsmasq and BIND9 in Service Detail UI
 - [x] Add NTP configuration form + validation flow in Service Detail UI
 - [x] Add guided Caddy configuration form in Service Detail UI

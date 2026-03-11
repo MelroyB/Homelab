@@ -21,6 +21,7 @@
 
 - [x] Harden auth flows (baseline)
 - [x] Dashboard SLO indicators (baseline)
+- [x] Generic service enable/disable lifecycle endpoint for current and future services
 - [ ] richer service dependency mapping
 
 ### Phase 2: DNS and DHCP management (in progress)

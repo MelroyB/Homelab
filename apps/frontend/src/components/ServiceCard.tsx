@@ -14,6 +14,7 @@ export function ServiceCard({ service }: ServiceCardProps) {
         <StatusBadge value={service.health || service.state} />
       </div>
       <p>{service.slug}</p>
+      <p>Enabled: {service.enabled ? "yes" : "no"}</p>
       <p>State: {service.state}</p>
       <p>
         Ports: {service.ports.length > 0 ? service.ports.join(", ") : "none"}

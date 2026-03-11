@@ -32,6 +32,18 @@ class ServiceActionResponse(BaseModel):
     message: str
 
 
+class ServiceEnableRequest(BaseModel):
+    enabled: bool
+
+
+class ServiceEnableResponse(BaseModel):
+    slug: str
+    enabled: bool
+    status: str
+    message: str
+    warnings: list[str] = Field(default_factory=list)
+
+
 class ConfigValidateRequest(BaseModel):
     config_json: dict[str, Any] = Field(default_factory=dict)
     raw_config: str = ""

@@ -35,11 +35,16 @@ FastAPI exposes OpenAPI docs at:
 - `GET /api/v1/services`
 - `GET /api/v1/services/{slug}`
 - `POST /api/v1/services/{slug}/actions`
+- `POST /api/v1/services/{slug}/enabled`
 - `GET /api/v1/services/{slug}/configs`
 - `POST /api/v1/services/{slug}/configs/validate`
 - `POST /api/v1/services/{slug}/configs/apply`
 - `POST /api/v1/services/{slug}/configs/{version_id}/rollback`
 - `GET /api/v1/services/{slug}/logs`
+
+`POST /api/v1/services/{slug}/enabled` provides generic lifecycle toggling for all current and future services:
+- `enabled: false` -> marks service disabled and stops the container when running
+- `enabled: true` -> marks service enabled and starts the container when it is in a stopped state
 
 ### Docker manager
 

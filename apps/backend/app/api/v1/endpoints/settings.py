@@ -32,6 +32,7 @@ from app.schemas.settings import (
 from app.services.audit.service import AuditService
 from app.services.config.manager import ConfigManager
 from app.services.docker_gateway import DockerGateway
+from app.services.service_lifecycle import ServiceLifecycleManager
 
 router = APIRouter()
 DOMAIN_PATTERN = re.compile(
@@ -386,6 +387,7 @@ def apply_network_profile(
     docker_gateway: DockerGateway = Depends(get_docker_gateway),
 ) -> NetworkStackApplyResponse:
     manager = ConfigManager(db, docker_gateway)
+    lifecycle_manager = ServiceLifecycleManager(docker_gateway)
     domain = _normalize_domain(payload.domain)
     if not domain or not DOMAIN_PATTERN.fullmatch(domain):
         raise HTTPException(
@@ -493,46 +495,23 @@ def apply_network_profile(
     results: list[NetworkServiceApplyResult] = []
     for service_slug, service_enabled, config_json in service_payloads:
         service = _service_or_404(db, service_slug)
-        service.enabled = service_enabled
-
-        runtime_state = str(
-            docker_gateway.inspect(service.container_name).get("state", "unknown")
-        ).lower()
-
         if not service_enabled:
-            stop_status = "disabled"
-            stop_message = "Service disabled; container already stopped."
-            warnings: list[str] = []
-            if runtime_state == "running":
-                ok_stop, stop_result = docker_gateway.action(service.container_name, "stop")
-                if ok_stop:
-                    stop_status = "stopped"
-                    stop_message = "Service disabled and container stopped."
-                else:
-                    stop_status = "failed"
-                    stop_message = "Service disabled, but stopping container failed."
-                    warnings.append(stop_result)
-            elif runtime_state == "not_found":
-                stop_message = "Service disabled; container not found."
-
+            lifecycle_result = lifecycle_manager.reconcile_enabled(service=service, enabled=False)
             results.append(
                 NetworkServiceApplyResult(
                     service_slug=service_slug,
-                    status=stop_status,
+                    status=lifecycle_result.status,
                     version=None,
-                    message=stop_message,
-                    warnings=warnings,
+                    message=lifecycle_result.message,
+                    warnings=lifecycle_result.warnings,
                 )
             )
             continue
 
-        pre_warnings: list[str] = []
-        if runtime_state in {"created", "exited", "dead", "paused"}:
-            ok_start, start_result = docker_gateway.action(service.container_name, "start")
-            if not ok_start:
-                pre_warnings.append(f"Start before apply failed: {start_result}")
-        elif runtime_state == "not_found":
-            pre_warnings.append("Container not found; apply may fail on reload/restart.")
+        lifecycle_result = lifecycle_manager.reconcile_enabled(service=service, enabled=True)
+        pre_warnings = list(lifecycle_result.warnings)
+        if lifecycle_result.status != "failed":
+            pre_warnings += lifecycle_manager.ensure_running_before_apply(service=service)
 
         if service_slug == "bind9":
             _write_bind9_named_conf(
