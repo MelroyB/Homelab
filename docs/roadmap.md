@@ -11,54 +11,56 @@
 
 ## Phase plan
 
-### Phase 0: repository and scaffolding (current)
+### Phase 0: repository and scaffolding (done)
 
-- Monorepo layout
-- CI/lint/test/tooling
-- Compose stack and docs
+- [x] Monorepo layout
+- [x] CI/lint/test/tooling
+- [x] Compose stack and docs
 
-### Phase 1: auth, dashboard, service registry
+### Phase 1: auth, dashboard, service registry (in progress)
 
-- Harden auth flows
-- Dashboard SLO indicators
-- richer service dependency mapping
+- [x] Harden auth flows (baseline)
+- [x] Dashboard SLO indicators (baseline)
+- [ ] richer service dependency mapping
 
-### Phase 2: DNS and DHCP management
+### Phase 2: DNS and DHCP management (in progress)
 
-- dnsmasq and BIND schema-driven forms
-- syntax validation by native binaries (`dnsmasq --test`, `named-checkzone`)
-- safer apply with staged dry-run checks
+- [x] dnsmasq and BIND schema-driven forms
+- [x] Guided Caddy form in Service Detail UI
+- [ ] syntax validation by native binaries (`dnsmasq --test`, `named-checkzone`)
+- [ ] safer apply with staged dry-run checks
 
-### Phase 3: NTP and monitoring/logging
+### Phase 3: NTP and monitoring/logging (in progress)
 
-- NTP config forms + validation
-- integrated metrics stack (Prometheus/Grafana)
-- alert hooks (email/webhook)
+- [x] NTP config forms + validation
+- [ ] integrated metrics stack (Prometheus/Grafana)
+- [ ] alert hooks (email/webhook)
 
-### Phase 4: backup/restore and rollback hardening
+### Phase 4: backup/restore and rollback hardening (planned)
 
-- encrypted backup artifacts
-- point-in-time restore workflows
-- rollback impact simulation
+- [ ] encrypted backup artifacts
+- [ ] point-in-time restore workflows
+- [ ] rollback impact simulation
 
-### Phase 5: advanced RBAC, OIDC, HA, plugin architecture
+### Phase 5: advanced RBAC, OIDC, HA, plugin architecture (planned)
 
-- fine-grained roles/permissions
-- OIDC providers
-- HA controller architecture
-- plugin SDK for third-party service adapters
+- [ ] fine-grained roles/permissions
+- [ ] OIDC providers
+- [ ] HA controller architecture
+- [ ] plugin SDK for third-party service adapters
 
 ## Milestones
 
-1. M1: Secure bootstrap + auth + dashboard baseline
-2. M2: Safe DNS/DHCP config management
-3. M3: NTP + monitoring + log quality improvements
-4. M4: Disaster recovery hardening
-5. M5: Multi-user/RBAC/OIDC + extensibility model
+1. M1: Secure bootstrap + auth + dashboard baseline (done)
+2. M2: Safe DNS/DHCP config management (in progress)
+3. M3: NTP + monitoring + log quality improvements (in progress)
+4. M4: Disaster recovery hardening (planned)
+5. M5: Multi-user/RBAC/OIDC + extensibility model (planned)
 
 ## Completed foundation work
 
 - Alembic migration baseline integrated; backend startup no longer uses runtime `create_all`.
+- Guided service config forms shipped for Caddy, dnsmasq, BIND9, and NTP.
 
 ## Backlog (prioritized)
 
