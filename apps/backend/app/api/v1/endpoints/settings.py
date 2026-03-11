@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -302,6 +303,57 @@ def _suggest_mail_dns_records(payload: MailStackProfile) -> list[DnsRecord]:
     ]
 
 
+def _write_mail_runtime_files(
+    settings: Settings,
+    *,
+    domain: str,
+    postmaster_address: str,
+    mailboxes: list[dict],
+) -> dict[str, str]:
+    config_dir = Path(settings.data_dir) / "config" / "mailserver"
+    config_dir.mkdir(parents=True, exist_ok=True)
+
+    accounts_path = config_dir / "accounts.cf"
+    aliases_path = config_dir / "aliases.cf"
+    manifest_path = config_dir / "mailboxes.json"
+
+    accounts_lines: list[str] = []
+    alias_lines: list[str] = []
+    for mailbox in mailboxes:
+        email = str(mailbox.get("email", "")).strip().lower()
+        password = str(mailbox.get("password", "")).strip()
+        enabled = bool(mailbox.get("enabled", True))
+        if email and password and enabled:
+            accounts_lines.append(f"{email}|{password}")
+
+        aliases = mailbox.get("aliases", [])
+        if isinstance(aliases, list):
+            for alias in aliases:
+                normalized_alias = str(alias).strip().lower()
+                if normalized_alias and email and enabled:
+                    alias_lines.append(f"{normalized_alias}|{email}")
+
+    if postmaster_address not in [line.split("|", 1)[0] for line in accounts_lines if "|" in line]:
+        account_domain = postmaster_address.split("@")[-1].strip().lower()
+        if account_domain == domain:
+            alias_lines.append(f"postmaster@{domain}|{postmaster_address}")
+
+    accounts_text = ("\n".join(accounts_lines) + "\n") if accounts_lines else ""
+    aliases_text = ("\n".join(alias_lines) + "\n") if alias_lines else ""
+    accounts_path.write_text(accounts_text, encoding="utf-8")
+    aliases_path.write_text(aliases_text, encoding="utf-8")
+    manifest_path.write_text(
+        json.dumps({"domain": domain, "mailboxes": mailboxes}, indent=2),
+        encoding="utf-8",
+    )
+
+    return {
+        "accounts_path": str(accounts_path),
+        "aliases_path": str(aliases_path),
+        "manifest_path": str(manifest_path),
+    }
+
+
 def _dns_record_list(
     value: object, fallback: list[dict[str, str]] | None = None
 ) -> list[DnsRecord]:
@@ -407,6 +459,7 @@ def mail_profile(
     _admin_user: User = Depends(require_admin),
 ) -> MailStackProfile:
     mail_cfg = _active_config_json(db, "mailserver")
+    webmail_cfg = _active_config_json(db, "webmail")
     enable_flags = _service_enabled_map(db, ["mailserver", "webmail"])
 
     domain = _normalize_domain(str(mail_cfg.get("domain", "example.com"))) or "example.com"
@@ -419,6 +472,10 @@ def mail_profile(
     return MailStackProfile(
         domain=domain,
         hostname=str(mail_cfg.get("hostname", "mail")).strip() or "mail",
+        webmail_url=(
+            str(webmail_cfg.get("webmail_url", f"https://webmail.{domain}")).strip()
+            or f"https://webmail.{domain}"
+        ),
         postmaster_address=postmaster_address,
         enable_mailserver=enable_flags.get("mailserver", True),
         enable_webmail=enable_flags.get("webmail", True),
@@ -449,6 +506,7 @@ def apply_mail_profile(
     payload: MailStackProfile,
     request: Request,
     db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
     current_user: User = Depends(require_admin),
     docker_gateway: DockerGateway = Depends(get_docker_gateway),
 ) -> MailStackApplyResponse:
@@ -495,8 +553,19 @@ def apply_mail_profile(
 
     hostname = payload.hostname.strip().lower() or "mail"
     mail_host = f"{hostname}.{domain}"
+    webmail_url = (
+        payload.webmail_url.strip()
+        if payload.webmail_url and payload.webmail_url.strip()
+        else f"https://webmail.{domain}"
+    )
     dkim_selector = payload.dkim_selector.strip().lower() or "mail"
     dkim_public_key = (payload.dkim_public_key or "").strip() or None
+    runtime_paths = _write_mail_runtime_files(
+        settings,
+        domain=domain,
+        postmaster_address=postmaster_address,
+        mailboxes=normalized_mailboxes,
+    )
 
     service_payloads: list[tuple[str, bool, dict]] = [
         (
@@ -517,6 +586,9 @@ def apply_mail_profile(
                 "spf_policy": payload.spf_policy.strip(),
                 "dmarc_policy": payload.dmarc_policy.strip(),
                 "mailboxes": normalized_mailboxes,
+                "runtime_accounts_path": runtime_paths["accounts_path"],
+                "runtime_aliases_path": runtime_paths["aliases_path"],
+                "runtime_manifest_path": runtime_paths["manifest_path"],
             },
         ),
         (
@@ -525,6 +597,7 @@ def apply_mail_profile(
             {
                 "mail_domain": domain,
                 "mail_host": mail_host,
+                "webmail_url": webmail_url,
                 "imap_port": 993,
                 "smtp_submission_port": 587,
                 "mailbox_count": len(normalized_mailboxes),
@@ -598,6 +671,32 @@ def apply_mail_profile(
         results=results,
         suggested_dns_records=suggestions,
     )
+
+
+@router.get("/mail/webmail/url")
+def mail_webmail_url(
+    mailbox: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+    _admin_user: User = Depends(require_admin),
+) -> dict[str, str | None]:
+    mail_cfg = _active_config_json(db, "mailserver")
+    webmail_cfg = _active_config_json(db, "webmail")
+    domain = _normalize_domain(str(mail_cfg.get("domain", "example.com"))) or "example.com"
+    url = (
+        str(webmail_cfg.get("webmail_url", f"https://webmail.{domain}")).strip()
+        or f"https://webmail.{domain}"
+    )
+
+    mailbox_value = mailbox.strip().lower() if mailbox else None
+    if mailbox_value:
+        mailboxes = _mailbox_list(mail_cfg.get("mailboxes"))
+        if not any(item.email == mailbox_value and item.enabled for item in mailboxes):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Mailbox not found or disabled: {mailbox_value}",
+            )
+
+    return {"url": url, "mailbox": mailbox_value}
 
 
 @router.get("/network/profile", response_model=NetworkStackProfile)

@@ -79,6 +79,7 @@ Current service catalog includes foundational placeholders for future mail manag
 - `POST /api/v1/settings/network/apply`
 - `GET /api/v1/settings/mail/profile`
 - `POST /api/v1/settings/mail/apply`
+- `GET /api/v1/settings/mail/webmail/url`
 
 `/settings/network/*` is intended as the unified management surface for:
 - dnsmasq DHCP scope/options/reservations
@@ -120,6 +121,7 @@ Apply behavior for each enabled flag:
 - DKIM/SPF/DMARC profile fields
 - mailbox definitions (email, password, aliases, quota, enabled)
 - DNS record suggestions for `MX`, `SPF`, `DMARC`, and `DKIM`
+- webmail launch URL resolution (optionally validated against a mailbox)
 
 ## Error conventions
 

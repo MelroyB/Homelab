@@ -24,6 +24,8 @@
 - [ ] Add per-domain DNS record sets and SOA/NS defaults for multi-zone operation
 - [x] Add managed mail settings API baseline (`/settings/mail/profile` and `/settings/mail/apply`)
 - [x] Add mailbox management UI baseline in Settings (mailbox definitions + apply flow)
+- [x] Add mail runtime provisioning baseline (`accounts.cf`, `aliases.cf`, `mailboxes.json`)
+- [x] Add webmail launch URL endpoint (`/settings/mail/webmail/url`) + UI launch helper
 - [ ] Add managed mail stack services (`mailserver`, `webmail`) in compose/runtime with persistent state
 - [ ] Add guided mail domain setup flow (MX, SPF, DKIM, DMARC) with runtime validators
 - [ ] Add mailbox runtime provisioning and password rotation (apply to mail backend, not only config model)

@@ -66,6 +66,8 @@
 ### Phase 7: mail platform (planned)
 
 - [x] Managed mail settings baseline (service registry + profile/apply API + mailbox model)
+- [x] Mail runtime provisioning baseline (`accounts.cf`, `aliases.cf`, `mailboxes.json`)
+- [x] Webmail URL integration baseline (profile/apply + launch URL endpoint)
 - [ ] Managed mail stack deployment (SMTP/IMAP + webmail containers/runtime)
 - [ ] DKIM key generation and rotation flow
 - [ ] SPF and DMARC policy helper with DNS record generation

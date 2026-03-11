@@ -4,7 +4,8 @@ import {
   MailStackApplyResponse,
   MailStackProfile,
   NetworkStackApplyResponse,
-  NetworkStackProfile
+  NetworkStackProfile,
+  WebmailUrlResponse
 } from "../types/api";
 
 export function getNetworkStackProfile(): Promise<NetworkStackProfile> {
@@ -35,4 +36,11 @@ export function applyMailStackProfile(
     method: "POST",
     body: JSON.stringify(profile)
   });
+}
+
+export function getWebmailUrl(
+  mailbox?: string | null
+): Promise<WebmailUrlResponse> {
+  const query = mailbox ? `?mailbox=${encodeURIComponent(mailbox)}` : "";
+  return apiRequest<WebmailUrlResponse>(`/settings/mail/webmail/url${query}`);
 }

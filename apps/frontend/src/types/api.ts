@@ -225,6 +225,7 @@ export interface MailboxEntry {
 export interface MailStackProfile {
   domain: string;
   hostname: string;
+  webmail_url: string | null;
   postmaster_address: string;
   enable_mailserver: boolean;
   enable_webmail: boolean;
@@ -284,4 +285,9 @@ export interface MailStackApplyResponse {
   success: boolean;
   results: NetworkServiceApplyResult[];
   suggested_dns_records: DnsRecord[];
+}
+
+export interface WebmailUrlResponse {
+  url: string;
+  mailbox: string | null;
 }

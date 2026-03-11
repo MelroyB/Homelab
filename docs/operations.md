@@ -49,7 +49,12 @@ make restart
 - API:
   - `GET /api/v1/settings/mail/profile`
   - `POST /api/v1/settings/mail/apply`
+  - `GET /api/v1/settings/mail/webmail/url`
 - Apply response includes suggested DNS records for `MX`, `SPF`, `DMARC`, and `DKIM`.
+- Mail apply writes runtime provisioning files under `data_dir/config/mailserver/`:
+  - `accounts.cf`
+  - `aliases.cf`
+  - `mailboxes.json`
 
 ## Health monitoring
 

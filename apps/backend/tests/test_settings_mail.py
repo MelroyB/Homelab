@@ -4,6 +4,7 @@ from pathlib import Path
 
 from sqlalchemy import select
 
+from app.api.deps import settings_singleton
 from app.db.session import SessionLocal
 from app.models.service import ManagedService
 
@@ -31,6 +32,7 @@ def test_mail_profile_has_expected_fields(client):
     assert "domain" in data
     assert "enable_mailserver" in data
     assert "enable_webmail" in data
+    assert "webmail_url" in data
     assert "dkim_selector" in data
     assert "spf_policy" in data
     assert "dmarc_policy" in data
@@ -78,11 +80,18 @@ def test_mail_profile_apply_with_mailbox(client):
         ],
     }
 
-    apply_response = client.post(
-        "/api/v1/settings/mail/apply",
-        json=payload,
-        headers=headers,
-    )
+    previous_data_dir = settings_singleton.data_dir
+    data_dir = Path.cwd() / ".tmp" / "tests" / "mail"
+    settings_singleton.data_dir = data_dir
+    try:
+        apply_response = client.post(
+            "/api/v1/settings/mail/apply",
+            json=payload,
+            headers=headers,
+        )
+    finally:
+        settings_singleton.data_dir = previous_data_dir
+
     assert apply_response.status_code == 200
     apply_data = apply_response.json()
     assert apply_data["success"] is True
@@ -93,6 +102,16 @@ def test_mail_profile_apply_with_mailbox(client):
         item.get("name") == "_dmarc" for item in apply_data.get("suggested_dns_records", [])
     )
 
+    accounts_file = data_dir / "config" / "mailserver" / "accounts.cf"
+    aliases_file = data_dir / "config" / "mailserver" / "aliases.cf"
+    manifest_file = data_dir / "config" / "mailserver" / "mailboxes.json"
+    assert accounts_file.exists()
+    assert aliases_file.exists()
+    assert manifest_file.exists()
+    assert "admin@example.com|super-secret-mail-password" in accounts_file.read_text(
+        encoding="utf-8"
+    )
+
     profile_response = client.get("/api/v1/settings/mail/profile")
     assert profile_response.status_code == 200
     profile = profile_response.json()
@@ -101,3 +120,11 @@ def test_mail_profile_apply_with_mailbox(client):
     assert mailbox["email"] == "admin@example.com"
     assert mailbox["has_password"] is True
     assert mailbox["password"] is None
+
+    webmail_response = client.get(
+        "/api/v1/settings/mail/webmail/url?mailbox=admin@example.com"
+    )
+    assert webmail_response.status_code == 200
+    webmail_payload = webmail_response.json()
+    assert webmail_payload["mailbox"] == "admin@example.com"
+    assert isinstance(webmail_payload.get("url"), str)

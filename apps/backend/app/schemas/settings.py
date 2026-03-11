@@ -79,6 +79,7 @@ class NetworkStackApplyResponse(BaseModel):
 class MailStackProfile(BaseModel):
     domain: str = "example.com"
     hostname: str = "mail"
+    webmail_url: str | None = "https://webmail.example.com"
     postmaster_address: str = "postmaster@example.com"
     enable_mailserver: bool = True
     enable_webmail: bool = True

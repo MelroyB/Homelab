@@ -4,7 +4,8 @@ import {
   applyNetworkStackProfile,
   getDhcpLeases,
   getMailStackProfile,
-  getNetworkStackProfile
+  getNetworkStackProfile,
+  getWebmailUrl
 } from "../api/settings";
 import {
   DnsRecord,
@@ -75,6 +76,8 @@ export function SettingsPage() {
   const [result, setResult] = useState<string | null>(null);
   const [mailError, setMailError] = useState<string | null>(null);
   const [mailResult, setMailResult] = useState<string | null>(null);
+  const [webmailLaunchMailbox, setWebmailLaunchMailbox] = useState("");
+  const [webmailLaunchUrl, setWebmailLaunchUrl] = useState<string | null>(null);
 
   const reload = async () => {
     const [profileData, leaseData, mailProfileData] = await Promise.all([
@@ -365,6 +368,7 @@ export function SettingsPage() {
         ...mailProfile,
         domain,
         hostname: mailProfile.hostname.trim().toLowerCase(),
+        webmail_url: mailProfile.webmail_url?.trim() || null,
         postmaster_address: postmasterAddress,
         dkim_selector: mailProfile.dkim_selector.trim().toLowerCase(),
         dkim_public_key: mailProfile.dkim_public_key?.trim() || null,
@@ -382,6 +386,22 @@ export function SettingsPage() {
       await reload();
     } catch (err) {
       setMailError(err instanceof Error ? err.message : "Mail apply failed");
+    }
+  };
+
+  const onOpenWebmail = async () => {
+    setMailError(null);
+    try {
+      const mailbox = webmailLaunchMailbox.trim().toLowerCase() || null;
+      const response = await getWebmailUrl(mailbox);
+      setWebmailLaunchUrl(response.url);
+      if (typeof window !== "undefined") {
+        window.open(response.url, "_blank", "noopener,noreferrer");
+      }
+    } catch (err) {
+      setMailError(
+        err instanceof Error ? err.message : "Webmail URL ophalen mislukt"
+      );
     }
   };
 
@@ -1028,6 +1048,16 @@ export function SettingsPage() {
             />
           </label>
           <label>
+            Webmail URL
+            <input
+              value={mailProfile.webmail_url ?? ""}
+              onChange={(e) =>
+                updateMailProfile({ webmail_url: e.target.value || null })
+              }
+              placeholder="https://webmail.example.com"
+            />
+          </label>
+          <label>
             Postmaster e-mail
             <input
               value={mailProfile.postmaster_address}
@@ -1303,6 +1333,31 @@ export function SettingsPage() {
               </tbody>
             </table>
           )}
+
+          <h3>Webmail</h3>
+          <label>
+            Mailbox voor launch-check (optioneel)
+            <input
+              value={webmailLaunchMailbox}
+              onChange={(e) => setWebmailLaunchMailbox(e.target.value)}
+              placeholder="admin@example.com"
+            />
+          </label>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={onOpenWebmail}
+          >
+            Open webmail
+          </button>
+          {webmailLaunchUrl ? (
+            <p>
+              Webmail URL:{" "}
+              <a href={webmailLaunchUrl} target="_blank" rel="noreferrer">
+                {webmailLaunchUrl}
+              </a>
+            </p>
+          ) : null}
         </div>
       </div>
     </section>
