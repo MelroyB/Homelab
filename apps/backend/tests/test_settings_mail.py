@@ -43,9 +43,7 @@ def test_mail_profile_apply_with_mailbox(client):
     csrf_token = _login(client)
     headers = {"x-csrf-token": csrf_token}
     with SessionLocal() as db:
-        mailserver = db.scalar(
-            select(ManagedService).where(ManagedService.slug == "mailserver")
-        )
+        mailserver = db.scalar(select(ManagedService).where(ManagedService.slug == "mailserver"))
         webmail = db.scalar(select(ManagedService).where(ManagedService.slug == "webmail"))
         assert mailserver is not None
         assert webmail is not None
@@ -115,9 +113,7 @@ def test_mail_profile_apply_with_mailbox(client):
     assert isinstance(apply_data.get("results"), list)
     assert len(apply_data["results"]) == 2
     assert isinstance(apply_data.get("suggested_dns_records"), list)
-    assert any(
-        item.get("name") == "_dmarc" for item in apply_data.get("suggested_dns_records", [])
-    )
+    assert any(item.get("name") == "_dmarc" for item in apply_data.get("suggested_dns_records", []))
 
     accounts_file = data_dir / "config" / "mailserver" / "accounts.cf"
     aliases_file = data_dir / "config" / "mailserver" / "aliases.cf"
@@ -135,9 +131,7 @@ def test_mail_profile_apply_with_mailbox(client):
         encoding="utf-8"
     )
     assert "{SHA512-CRYPT}" in dms_accounts_file.read_text(encoding="utf-8")
-    assert 'ROUNDCUBEMAIL_DEFAULT_HOST="mailserver"' in webmail_env_file.read_text(
-        encoding="utf-8"
-    )
+    assert 'ROUNDCUBEMAIL_DEFAULT_HOST="mailserver"' in webmail_env_file.read_text(encoding="utf-8")
 
     profile_response = client.get("/api/v1/settings/mail/profile")
     assert profile_response.status_code == 200
@@ -148,9 +142,7 @@ def test_mail_profile_apply_with_mailbox(client):
     assert mailbox["has_password"] is True
     assert mailbox["password"] is None
 
-    webmail_response = client.get(
-        "/api/v1/settings/mail/webmail/url?mailbox=admin@example.com"
-    )
+    webmail_response = client.get("/api/v1/settings/mail/webmail/url?mailbox=admin@example.com")
     assert webmail_response.status_code == 200
     webmail_payload = webmail_response.json()
     assert webmail_payload["mailbox"] == "admin@example.com"
