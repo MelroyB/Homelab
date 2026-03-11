@@ -34,6 +34,32 @@ docker compose -f docker-compose.yml -f docker-compose.publish.yml up -d
 curl http://localhost:8080/api/v1/health/ready
 ```
 
+## Mail stack ports
+
+Default host mappings:
+
+- SMTP: `MAIL_SMTP_PORT` -> `25`
+- Submission: `MAIL_SUBMISSION_PORT` -> `587`
+- IMAPS: `MAIL_IMAPS_PORT` -> `993`
+- Webmail: `WEBMAIL_HTTP_PORT` -> `8081`
+
+If your host already uses these ports (for example Synology DSM services), remap them in `.env`:
+
+```env
+MAIL_SMTP_PORT=2525
+MAIL_SUBMISSION_PORT=2587
+MAIL_IMAPS_PORT=2993
+WEBMAIL_HTTP_PORT=18081
+```
+
+Then redeploy:
+
+```bash
+docker compose up -d
+```
+
+For real external mail delivery, keep public port-forwarding to standard ports (`25`, `587`, `993`) whenever possible.
+
 ## Let's Encrypt via Caddy
 
 Configure this in the Service UI for `caddy`:

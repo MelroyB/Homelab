@@ -63,7 +63,7 @@
 - [ ] backup target service for offsite copies (MinIO/S3-compatible)
 - [ ] power event and graceful shutdown management (NUT/UPS tooling)
 
-### Phase 7: mail platform (planned)
+### Phase 7: mail platform (in progress)
 
 - [x] Managed mail settings baseline (service registry + profile/apply API + mailbox model)
 - [x] Mail runtime provisioning baseline (`accounts.cf`, `aliases.cf`, `mailboxes.json`, `postfix-accounts.cf`, `postfix-virtual.cf`)
@@ -84,7 +84,7 @@
 3. M3: NTP + monitoring + log quality improvements (in progress)
 4. M4: Disaster recovery hardening (planned)
 5. M5: Multi-user/RBAC/OIDC + extensibility model (planned)
-6. M6: Mail platform with mailbox management and webmail (planned)
+6. M6: Mail platform with mailbox management and webmail (in progress)
 
 ## Completed foundation work
 
@@ -93,7 +93,7 @@
 - Caddy guided flow supports Let's Encrypt domains/email/staging controls.
 - Unified Settings-based Network Stack flow shipped (DNS + DHCP + NTP together).
 - Unified Settings-based service toggles shipped (disable stops containers; re-enable starts before apply).
-- Mail service placeholders are registered in managed services (`mailserver`, `webmail`) for lifecycle control and visibility.
+- Mail services are now fully registered and config-managed in the service registry (`mailserver`, `webmail`).
 - Mail settings API baseline shipped (`/settings/mail/profile`, `/settings/mail/apply`) including DKIM/SPF/DMARC fields and mailbox definitions.
 - Mail DNS setup-check endpoint shipped (`/settings/mail/dns/suggestions`) with validation feedback and record preview.
 - Mail apply now reuses setup validation and blocks invalid configurations before runtime writes/reload.
@@ -121,7 +121,7 @@
 15. Add OIDC auth provider integration
 16. Add plugin discovery and adapter loading
 17. Add UPS/power orchestration (NUT) for graceful shutdown paths
-18. Add managed mail stack (SMTP/IMAP + webmail + mailbox CRUD)
+18. Harden managed mail stack (mailbox CRUD/runtime sync, upgrade strategy, disaster recovery tests)
 19. Extend DKIM flow with key generation/rotation and optional DNS publishing helper
 20. Add mailbox observability (queue, delivery failures, reputation checks)
 

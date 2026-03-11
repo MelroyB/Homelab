@@ -29,6 +29,8 @@
 - [x] Add guided mail domain setup check endpoint (`/settings/mail/dns/suggestions`) with DNS record preview + validation issues
 - [x] Reuse mail setup validation inside `mail/apply` to block invalid apply requests
 - [x] Add managed mail stack services (`mailserver`, `webmail`) in compose/runtime with persistent state
+- [ ] Add post-apply smoke checks for mail stack (SMTP/IMAP/webmail reachability + auth sanity)
+- [ ] Add Synology-friendly mail deployment profile with non-conflicting default host ports
 - [ ] Add one-click publish of suggested mail DNS records into managed authoritative zones
 - [ ] Add mailbox runtime provisioning and password rotation (apply to mail backend, not only config model)
 - [ ] Add mail queue + delivery status visibility in UI

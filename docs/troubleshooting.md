@@ -33,3 +33,19 @@
 - Check host-level port conflicts (`53`, `67`, `123`)
 - Verify required capabilities for service containers
 - Adjust compose port mappings to local environment constraints
+
+## Mail/webmail ports not binding
+
+- Check conflicts on host ports (`25`, `587`, `993`, `8081`)
+- On Synology, verify DSM/reverse proxy packages are not already consuming these ports
+- Override `MAIL_SMTP_PORT`, `MAIL_SUBMISSION_PORT`, `MAIL_IMAPS_PORT`, `WEBMAIL_HTTP_PORT` in `.env`
+- Re-run `docker compose config` and confirm effective mappings before restarting
+
+## Mail container starts but login fails
+
+- Run mail setup check first (`POST /api/v1/settings/mail/dns/suggestions`) and resolve blocking errors
+- Re-apply mail profile (`POST /api/v1/settings/mail/apply`) to regenerate runtime account/alias files
+- Verify runtime files exist in data dir:
+  - `config/mailserver/postfix-accounts.cf`
+  - `config/mailserver/postfix-virtual.cf`
+  - `config/webmail/webmail.env`
